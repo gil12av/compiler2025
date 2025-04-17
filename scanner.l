@@ -3,10 +3,11 @@
 #include "y.tab.h"
 #include <stdio.h>
 #include <stdlib.h>
-
+extern int yylineno;
 %}
 
 %%
+
  /* KeyWords */
 bool    { return BOOL; }
 char	{ return CHAR; }
@@ -79,6 +80,8 @@ FALSE  { return FALSE_LITERAL; }
 "]"	 	{ return yytext[0]; }
 ":"	 	{ return yytext[0]; }
 "|"	 	{ return '|'; }
+
+\n    { yylineno++; }
 
 %%	
 	
