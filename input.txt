@@ -1,0 +1,7 @@
+def foo(par1 int:x; par2 real:y): returns int
+   var
+   type char:c:'a';
+   type int:c,x:0;
+   begin
+    ;
+   end   
