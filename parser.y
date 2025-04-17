@@ -26,8 +26,9 @@ program: function_list;
 function_list: function | function_list function ; 
 
 function: DEF IDENTIFIER '(' parameter_list ')' ':' RETURNS type 
-          VAR declaration_list
-          BEGIN_KEYWORD body END_KEYWORD ;
+          function_body ;
+          
+function_body: VAR declaration_list body | body ;
 
 parameter_list: parameter | parameter_list ';' parameter ;
 
@@ -46,9 +47,21 @@ variable1: IDENTIFIER | IDENTIFIER ':' literal ;
 literal: INT_LITERAL | REAL_LITERAL | CHAR_LITERAL | HEX_LITERAL
         | STRING_LITERAL | TRUE_LITERAL | FALSE_LITERAL | NULL_KEYWORD ; 
  
- body: ';' ;
+body: BEGIN_KEYWORD statement_list END_KEYWORD ;
 
-// ,body 
+statement_list: statement | statement_list statement ;
+
+statement: RETURN_KEYWORD experssion ';'
+            | IDENTIFIER '=' experssion ';'
+            | IF experssion ':' body elif_list else_block
+            | WHILE experssion ':' body
+            | FOR IDENTIFIER '=' experssion ;
+
+experssion: TRUE_LITERAL | FALSE_LITERAL | INT_LITERAL | IDENTIFIER ;
+
+
+
+// expression, elif_list, else_block
 
 
 
@@ -68,9 +81,9 @@ int main()
     int result = yyparse();
     
     if (result == 0) {
-        printf("Parsing completed successfully!\n");
+        printf("\nParsing completed successfully!\n");
     } else {
-        printf("Parsing failed.\n");
+        printf("\nParsing failed.\n");
     }  
 
     return result;
