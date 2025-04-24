@@ -1,0 +1,18 @@
+def test(par1 int:x; par2 int:y): returns int
+var
+    type int:z;
+begin
+    if x + y * 2 > 10:
+        z = x + y;
+
+    elif x < y:
+    begin
+        z = y - x;
+        z = z * 2;
+    end
+
+    else:
+        return z;
+
+    return z;
+end
