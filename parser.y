@@ -69,7 +69,7 @@ optional_function_list: /* empty */  | function_list;
 
 optional_var : /* empty */ | VAR declaration_list ;
 
-statement_list: statement |  statement statement_list  ;
+statement_list: statement |  statement statement_list ;
 
 statement:    simple_statement  
             | call_statement
@@ -85,16 +85,20 @@ lvalueFix:   IDENTIFIER
         | IDENTIFIER '[' boolean? ']' ; // need to fix case of operator ( REAL,BOOL, NOT_EQUAL etc'...)
 */
 
+/* This is the left side of the assignment... */
 lvalue:   IDENTIFIER 
-        | IDENTIFIER '[' experssion ']' ; // for example of a[19] that makes us a problem
-
+        | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
+        | '*' IDENTIFIER ;               // For pointers, For example: *x
+        ; 
 
 simple_statement:  lvalue '=' experssion ';' 
                  | return_statement; 
 
 return_statement: RETURN_KEYWORD experssion ';';
 
-call_statement : CALL IDENTIFIER '(' experssion_list ')' ';'
+/* For procedure only, for example: call foo(), for function is in line 150 */
+call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
+                 | CALL IDENTIFIER '(' experssion_list ')' ';'    // Procedure with parameter
 
 if_statement:IF experssion ':' single_block_or_block elif_list else_block ;
 
@@ -119,7 +123,6 @@ do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWOR
 
 for_statement:FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block ;
 
-
 experssion: simple_expression
            | experssion '+' experssion
            | experssion '-' experssion
@@ -135,7 +138,7 @@ experssion: simple_expression
            | experssion AND experssion
            | experssion OR experssion
            | NOT experssion
-           | call_experssion
+           | call_experssion 
           ;
 
 simple_expression: '(' experssion ')' 
@@ -147,14 +150,14 @@ simple_expression: '(' experssion ')'
 
 experssion_list: experssion | experssion_list ',' experssion ;
 
-call_experssion:   IDENTIFIER '(' ')'
-                 | IDENTIFIER '(' experssion_list ')';
-
-pointer_experssion : '*' IDENTIFIER  
-                    | '&' IDENTIFIER  ; 
+/* For option to call func with assign, for example: x = call foo(a,b) */
+call_experssion:   CALL IDENTIFIER '('  ')' 
+                 | CALL IDENTIFIER '(' experssion_list ')';
 
 
-
+pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
+                    | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
+                    ; 
 
 %%
 int yyerror(char *s) {
