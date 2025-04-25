@@ -11,6 +11,7 @@ step 4:
 ./compilerTest < input.txt ---> run the file on input file
 
 
+/ ---------------------------- /
 
 **if you want do debug:**
 1. bison -d -v parser.y
