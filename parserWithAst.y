@@ -8,11 +8,6 @@ extern int yylineno; // בשביל לעקוב אחר מספר שורה
 extern char *yytext;
 %}
 
-%union {
-    char *string;
-    struct ASTnode* node;
-}
-
 typedef struct ASTnode {
     char *node_type;
     char *value;
@@ -20,6 +15,11 @@ typedef struct ASTnode {
     struct ASTnode *right;
     struct ASTnode *next;
 } ASTnode;
+
+%union {
+    char *string;
+    struct ASTnode* node;
+}
 
 ASTnode *create_node(char *type, char *value, ASTnode *left, ASTnode *right, ASTnode *next);
 void print_ast(ASTnode *node, int depth);
@@ -55,20 +55,52 @@ void print_ast(ASTnode *node, int depth);
 
 %%
 
-program: function_list;
+program: function_list { $$ = $1; }
+        ;
 
-function_list: function | function_list function ; 
+function_list:  function                { $$ = $1; } 
+              | function_list function  { $$ = create_node("CODE", NULL, $1, $2, NULL); }
+              ;
 
-function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value
-          code_block ;
 
-return_value :  | RETURNS type ;
+function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
+            {
+                ASTnode *pars_node = create_node("PARS", NULL, $4, NULL, NULL);
+                ASTnode *ret_node = create_node("RET", $7 ? $7->value: "NONE", NULL, NULL, NULL);
+                ASTnode *func_node = create_node("FUNC", NULL, $2, pars_node, ret_node, $8);
+                $$ = func_node;
+            }
+            ;
 
-parameter_list: | parameter | parameter_list ';' parameter ;
+return_value :  /*empty*/          { $$ = NULL; } 
+               | RETURNS type      { $$ = create_node("TYPE", $2, NULL, NULL, NULL); }
+               ;
 
-parameter: PAR type ':' IDENTIFIER ;
+// about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
+parameter_list: /*empty*/                         { $$ = NULL; }
+                | parameter                       { $$ = $1; }
+                | parameter_list ';' parameter    { $$ = create_node("PARS", NULL, $1, $3, NULL); }
+                ;
 
-type: INT | REAL | CHAR | STRING | BOOL | INT_PTR | CHAR_PTR | REAL_PTR ;
+// about ast: we want to print example: (par1 INT x) --> so we use buffer.
+parameter: PAR type ':' IDENTIFIER 
+            {
+                char buffer[100];
+                snprintf(buffer, sizeof(buffer), "%s %s", $2, $4);
+                $$ = create_node($1, strdup(buffer), NULL, NULL, NULL)
+            }
+           ;
+
+// about ast: each of types are return from scanner to PAR or return_value.
+type:  INT       { $$ = $1; }
+     | REAL      { $$ = $1; }
+     | CHAR      { $$ = $1; }
+     | STRING    { $$ = $1; }
+     | BOOL      { $$ = $1; }
+     | INT_PTR   { $$ = $1; }
+     | CHAR_PTR  { $$ = $1; }
+     | REAL_PTR  { $$ = $1; }
+     ;
 
 declaration_list: declaration | declaration_list declaration ;
 
@@ -218,14 +250,14 @@ int main()
 {
     yydebug = 1;
     printf("Starting parsing...\n");
-    int result = yyparse();
-    if (result == 0) {
-        printf("\nParsing completed successfully!\n");
+    ASTnode* root = NULL;
+    if (yyparse(&root) == 0){
+        printf("\nAST:\n");
+        print_ast(root, 0);
     } else {
-        printf("\nParsing failed.\n");
-    }  
-
-    return result;
+        printf("Parsing FAILED.\n");
+    }
+    return 0;
     
 }
 
