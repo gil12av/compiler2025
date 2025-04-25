@@ -4,6 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 extern int yylineno;
+/* For debug only */
+int yywrap(){
+  return 1;
+} 
 %}
 
 %%
@@ -14,9 +18,9 @@ char	{ return CHAR; }
 int     { return INT; }
 real    { return REAL; }
 string  { return STRING; }
-int*    { return INT_PTR; }
-char*   { return CHAR_PTR; }
-real*   { return REAL_PTR; }	
+int\*    { return INT_PTR; }
+char\*   { return CHAR_PTR; }
+real\*   { return REAL_PTR; }	
 if      { return IF; }
 elif    { return ELIF; }
 else    { return ELSE; }
@@ -57,19 +61,16 @@ or      { return OR; }
  /* Literal Lexemes */
 TRUE 	 { return TRUE_LITERAL; }
 FALSE  { return FALSE_LITERAL; }
-	
-\'[ -~]\'	 { return CHAR_LITERAL; }
-	
-0[xX][0-9a-fA-F]+	 { return HEX_LITERAL; }
-[1-9][0-9]*	 	 	 { return INT_LITERAL; }
-0					 { return INT_LITERAL; }
 
 
-  /* String */
-\"([^\"\n])*\"        { return STRING_LITERAL; }
-	
+\'.\'	                                  { return CHAR_LITERAL; }
+[1-9][0-9]*                             { return INT_LITERAL; }
+0                                       { return INT_LITERAL; }
+[-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { return REAL_LITERAL;}
+\"([^\"\n])*\"                          { return STRING_LITERAL; }
+                     
  /* Identifier */
-[a-zA-Z][a-zA-Z0-9_]* { return IDENTIFIER; }
+[a-zA-Z][a-zA-Z0-9_]*   { return IDENTIFIER; }
 
  /* Other lexams */
 ";"		{ return yytext[0]; }
@@ -79,7 +80,7 @@ FALSE  { return FALSE_LITERAL; }
 "["	 	{ return yytext[0]; }
 "]"	 	{ return yytext[0]; }
 ":"	 	{ return yytext[0]; }
-"|"	 	{ return '|'; }
+"|"	 	{ return yytext[0]; }
 
 \n    { yylineno++; }
 
