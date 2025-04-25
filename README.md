@@ -12,8 +12,12 @@ step 4:
 
 
 
-if you want do debug:
-bison -d -v parser.y
-flex scanner.l
-gcc -g -DYYDEBUG parser.tab.c lex.yy.c -o compilerDebug
+**if you want do debug:**
+1. bison -d -v parser.y
+
+
+2. flex scanner.l
+
+
+3.gcc -g -DYYDEBUG parser.tab.c lex.yy.c -o compilerDebug
 
