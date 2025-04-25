@@ -62,12 +62,11 @@ or      { return OR; }
 TRUE 	 { return TRUE_LITERAL; }
 FALSE  { return FALSE_LITERAL; }
 
-
-\'.\'	                                  { return CHAR_LITERAL; }
+"\""[^"]*"\""                           { return STRING_LITERAL; }
+\'[.]\'	                                { return CHAR_LITERAL; }
 [1-9][0-9]*                             { return INT_LITERAL; }
 0                                       { return INT_LITERAL; }
-[-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { return REAL_LITERAL;}
-\"([^\"\n])*\"                          { return STRING_LITERAL; }
+[-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { return REAL_LITERAL; }
                      
  /* Identifier */
 [a-zA-Z][a-zA-Z0-9_]*   { return IDENTIFIER; }
@@ -81,7 +80,6 @@ FALSE  { return FALSE_LITERAL; }
 "]"	 	{ return yytext[0]; }
 ":"	 	{ return yytext[0]; }
 "|"	 	{ return yytext[0]; }
-
 \n    { yylineno++; }
 
 %%	
