@@ -14,9 +14,41 @@ typedef struct node {
     struct node *right;
 } node;
 
-node *mknode(char *token, node *left, node *right);
-void printtree(node *tree);
+node* mknode(char *token, node *left, node *right) {
+    node *newnode = (node*)malloc(sizeof(node));
+    char *newstr = (char*)malloc(strlen(token) + 1);
+    strcpy(newstr, token);
+    newnode->left = left;
+    newnode->right = right;
+    newnode->token = newstr;
+    return newnode;
+}
+
+void printtree(node *tree) {
+    if (tree == NULL)
+        return;
+    if (tree->left || tree->right)
+        printf("(");
+    
+    printf("%s", tree->token);
+    
+    if (tree->left) {
+        printf(" ");
+        printtree(tree->left);
+    }
+    if (tree->right) {
+        printf(" ");
+        printtree(tree->right);
+    }
+
+    if (tree->left || tree->right)
+        printf(")");
+}
+
+// מגדירים root גלובלי שישמר את העץ
 node* root = NULL;
+
+// טיפוס של YYSTYPE
 #define YYSTYPE struct node*
 %}
 
@@ -50,9 +82,9 @@ node* root = NULL;
 %type <node> call_statement if_statement elif_list elif_blocks elif_block else_block
 %type <node> single_block_or_block while_statement do_while_statement for_statement
 %type <node> experssion simple_expression experssion_list pointer_experssion
-*/
+*/ 
 
-%type <node> program function_list 
+%type program function_list 
 %type function return_value parameter_list parameter
 %type type declaration_list declaration variable_list variable1
 %type literal code_block inner_block optional_function_list optional_var
@@ -67,10 +99,7 @@ node* root = NULL;
 
 %%
 
-program: function_list  { $$ = mknode("CODE", NULL, $1);
-                            root = $$; 
-                            printtree(root);                          
-                        }
+program: function_list 
         ;
 
 function_list:  function                
@@ -149,7 +178,7 @@ lvalueFix:   IDENTIFIER
 /* This is the left side of the assignment... */
 lvalue:   IDENTIFIER 
         | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
-        | '*' IDENTIFIER ;               // For pointers, For example: *x
+        | '*' IDENTIFIER               // For pointers, For example: *x
         ; 
 
 simple_statement:  lvalue '=' experssion ';' 
@@ -222,63 +251,30 @@ pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_e
 
 %%
 
-/* For AST tree: */
-
-
-node* mknode(char *token, node *left, node *right) {
-    node *newnode = (node*)malloc(sizeof(node));
-    char *newstr = (char*)malloc(strlen(token) + 1);
-    strcpy(newstr, token);
-    newnode->left = left;
-    newnode->right = right;
-    newnode->token = newstr;
-    return newnode;
-}
-
-void printtree(node *tree)
-{
-    if (tree == NULL)
-        return;
-    if ( tree->left || tree->right)
-        printf("(");               // פותח סוגריים לפני הצגת התוכן
-    printf("%s", tree->token);  // מדפיס את הטוקן עצמו
-    
-    if (tree->left) {
-        printf(" ");            // רווח קטן לפני מעבר לתת-עץ שמאלי
-        printtree(tree->left);
-    }
-
-    if (tree->right) {
-        printf(" ");            // רווח קטן לפני מעבר לתת-עץ ימני
-        printtree(tree->right);
-    }
-    if (tree->left || tree->right)
-        printf(")");                // סוגר סוגריים אחרי סיום הבנים
-}
+#include <stdio.h>
 
 int yyerror(char *s) {
     printf("\nSyntax error at line %d: %s got %s\n", yylineno, s, yytext);
     return 0;
 }
 
-int main()
-{
-    printf("Starting parsing...\n");
-    if(yyparse() == 0) {
-        printf("Parse successful\n");
-        if ( root != NULL ){
-            printf("\nAST:\n");
+extern int yyparse();
+extern node* root;
+
+int main() {
+    printf("Starting to parse input ..... ");
+    if (yyparse() == 0) {
+        printf("\nYEAH! Parse Successful!\n");
+        if (root != NULL) {
             printtree(root);
             printf("\n");
-    }   else {
-        printf("No AST\n");
+        } else {
+            printf("No AST generated.\n");
         }
-    } else {    
-    printf("Parsing FAILED.\n");
+    } else {
+        printf("Parse Failed.\n");
     }
-    
     return 0;
-    
 }
 
 
