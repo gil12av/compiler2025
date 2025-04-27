@@ -16,11 +16,24 @@ typedef struct node {
 
 node* mknode(char *token, node *left, node *right) {
     node *newnode = (node*)malloc(sizeof(node));
-    char *newstr = (char*)malloc(strlen(token) + 1);
-    strcpy(newstr, token);
+        if(!newnode){
+            printf("Memory Allocation Failed");
+            exit(1);
+        }
+    if(token != NULL) {
+         char *newstr = (char*)malloc(strlen(token) + 1);
+         if(!newstr) {
+            printf("Memory Allocation for token failed.");
+            exit(1);
+         }
+         strcpy(newstr, token);
+         newnode->token = newstr;
+    }    else {
+            newnode->token = NULL;
+    }
+   
     newnode->left = left;
     newnode->right = right;
-    newnode->token = newstr;
     return newnode;
 }
 
@@ -28,13 +41,20 @@ void printtree(node *tree, int level) {
     if (tree == NULL) return;
     for(int i = 0; i < level; i++)
         printf(" ");
+    
     if (tree->left || tree->right)
         printf("(");
-    printf("%s", tree->token);
+  
+    if ( tree->token != NULL ) 
+        printf("%s", tree->token);
+    else
+        printf("(null =( )");
+
     if (tree->left) {
         printf("\n");
         printtree(tree->left, level + 1);
     }
+
     if (tree->right) {
         printf("\n");
         printtree(tree->right, level + 1);
@@ -113,6 +133,10 @@ function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block
                 node* pars = mknode("PARS", $4, NULL);  // Pararmeter
                 node* ret = mknode("RET", $7, NULL);    // Return_value
                 node* body = mknode("BODY", $8, NULL);  // Code_block 
+
+                node* func_def = mknode("FUNC", name, pars);
+                node* temp = mknode("FUNC_PARTS", ret, body);
+                $$ = mknode("FUNC_DEF",func_def, temp);
             } 
             ;
 
@@ -121,7 +145,7 @@ return_value :  /*empty*/       { $$ = mknode("NO_RET", NULL, NULL); }
                ;
 
 // about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
-parameter_list: /*empty*/                       { $$ = NULL; }                      
+parameter_list: /*empty*/                       { $$ = mknode("LINE124FIX", NULL, NULL); }                      
                 | parameter                     { $$ = $1; } 
                 | parameter_list ';' parameter  { $$ = mknode("PARS_LIST", $1, $3); }  
                 ;
@@ -258,7 +282,7 @@ if_statement:IF experssion ':' single_block_or_block elif_list else_block
             }
             ;
 
-elif_list:  /* empty */     { $$ = NULL; }
+elif_list:  /* empty */     { $$ = mknode("LINE261FIX", NULL, NULL); }
             | elif_blocks   { $$ = $1; }
             ;
 
