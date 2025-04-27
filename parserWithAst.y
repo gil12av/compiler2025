@@ -42,25 +42,24 @@ void printtree(node *tree, int level) {
     for(int i = 0; i < level; i++)
         printf(" ");
     
-    if (tree->left || tree->right)
-        printf("(");
-  
-    if ( tree->token != NULL ) 
-        printf("%s", tree->token);
-    else
-        printf("(null =( )");
-
-    if (tree->left) {
-        printf("\n");
+    if(tree->left || tree->right){
+        printf("(%s\n", tree->token);
+    
+        if (tree->left) {
         printtree(tree->left, level + 1);
-    }
+         }
 
-    if (tree->right) {
-        printf("\n");
+        if (tree->right) {
         printtree(tree->right, level + 1);
-    }
-    if (tree->left || tree->right)
-        printf(")");
+        }
+
+        for(int i = 0; i < level; i++)
+            printf(" ");
+
+        printf(")\n");
+    } else {
+        printf("%s\n", tree->token);
+    }   
 }
 
 // מגדירים root גלובלי שישמר את העץ
@@ -124,31 +123,45 @@ program: function_list
         ;
 
 function_list:  function                    { $$ = $1; }
-              | function_list function      { $$ = mknode("FUNC_LIST", $1, $2); }
+              | function_list function      
+                { 
+                    node* temp = $1;
+                    while(temp->right != NULL)
+                        temp = temp->right;
+                    temp->right = $2;    
+                    $$ = $1; 
+                }
               ;
 
 
 function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
             {
-                node* name = mknode($2, NULL, NULL);    // Function name
-                node* pars = mknode("PARS", $4, NULL);  // Pararmeter
-                node* ret = mknode("RET", $7, NULL);    // Return_value
-                node* body = mknode("BODY", $8, NULL);  // Code_block 
+                node* nameNode = mknode($2, NULL, NULL);    // Function name
+                node* parsNode = $4;                    // Pararmeter
+                node* retNode = $7;                     // Return_value
+                node* bodyNode = mknode("BODY", $8, NULL);  // Code_block 
 
-                node* func_def = mknode("", name, pars);
-                node* temp = mknode("", ret, body);
-                $$ = mknode("FUNC",func_def, temp);
+                node* header = mknode("FUNC", nameNode, parsNode);
+                node* parts = mknode("FUNC_PARTS", retNode, bodyNode);
+                $$ = mknode("FUNC_DEF",header, parts);
             } 
             ;
 
 return_value :  /*empty*/       { $$ = mknode("NONE", NULL, NULL); }         
-               | RETURNS type   { $$ = mknode("",mknode($2->token, NULL,NULL), NULL); }    
+               | RETURNS type   { $$ = mknode($2->token, NULL, NULL); }    
                ;
 
 // about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
 parameter_list: /*empty*/                       { $$ = mknode("EMPTY_PAR", NULL, NULL); }                      
-                | parameter                     { $$ = $1; } 
-                | parameter_list ';' parameter  { $$ = mknode("", $1, $3); }  
+                | parameter                     { $$ = mknode("PARS", $1, NULL); } 
+                | parameter_list ';' parameter  
+                   { 
+                       node* temp = $1;
+                       while(temp->right != NULL) 
+                          temp = temp->right;
+                       temp->right = $3;
+                       $$ = $1;   
+                   }  
                 ;
 
 // about ast: we want to print example: (par1 INT x) --> so we use buffer.
@@ -172,29 +185,55 @@ type:  INT          { $$ = mknode("INT", NULL,NULL); }
      ;
 
 declaration_list:  declaration                    { $$ = $1; }
-                 | declaration_list declaration   { $$ = mknode("LINE175", $1, $2); }
+                 | declaration_list declaration   
+                   { 
+                       node* temp = $1;
+                       while(temp->right != NULL) 
+                          temp = temp->right;
+                       temp->right = $2;
+                       $$ = $1;    
+                   }
                  ;
 
-declaration: TYPE type ':' variable_list ';'     { $$ = mknode("", $2, $4); }
+declaration: TYPE type ':' variable_list ';'     
+              {
+                 node* typeNode = mknode($2->token, NULL, NULL); 
+                 $$ = mknode("DECLERATION", typeNode, mknode($4->token,NULL,NULL));
+              }
              ;
 
-variable_list:  variable1                         { $$ = $1;}
-              | variable_list ',' variable1      { $$ = mknode("LINE182", $1, $3); }
+variable_list:  variable1       { $$ = $1;}
+              | variable_list ',' variable1      
+              { 
+                  node* temp = $1;
+                  while(temp->right != NULL) 
+                    temp = temp->right;
+                  temp->right = $3;
+                  $$ = $1;  
+              }
               ;
 
-variable1:  IDENTIFIER                                          // regular variable
-            { $$ = mknode($1, NULL, NULL); }                    // AST: Create node with variable name.
+variable1:  IDENTIFIER       // regular variable
+            { $$ = mknode($1, NULL, NULL); }   // AST: Create node with variable name.
 
-          | IDENTIFIER ':' literal                              // initialized var
-            { $$ = mknode("=",mknode($1, NULL, NULL), $3); }    // AST: create node "="
+          | IDENTIFIER ':' literal    // initialized var
+            { 
+                node* idNode = mknode($1, NULL, NULL);
+                $$ = mknode("=", idNode ,$3);
+            }    // AST: create node "="
 
-          | IDENTIFIER '[' INT_LITERAL ']'                      // array (example: a[10] )
-            { $$ = mknode("ARRAY", mknode($1, NULL, NULL),mknode($3, NULL, NULL)); }  // AST: node (name to size)
+          | IDENTIFIER '[' INT_LITERAL ']'     // array ( example: a[10] )
+            { 
+                char buffer[256];
+                sprintf(buffer, "%s[%s]", $1, $3);
+                $$ = mknode(buffer, NULL, NULL); 
+            }  // AST: node (name to size)
 
           | IDENTIFIER '[' INT_LITERAL ']' ':' STRING_LITERAL   // array with value or init
             { 
-              node* array_node = mknode("ARRAY", mknode($1, NULL, NULL),mknode($3, NULL,NULL));
-              $$ = mknode("=", array_node, mknode($6,NULL,NULL));  
+               char buffer[256];
+                sprintf(buffer, "%s[%s] = %s", $1, $3, $6);
+                $$ = mknode(buffer, NULL, NULL); 
             }
           ;
 
@@ -210,7 +249,7 @@ literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL); }
  
 code_block: optional_var BEGIN_KEYWORD inner_block END_KEYWORD 
             {   
-                $$ = mknode("", $1, $3);
+                $$ = mknode("BODY_252", $1, $3);
             }
             ;
 
@@ -224,12 +263,19 @@ optional_function_list:   /* empty */       { $$ = mknode("LINE223", NULL, NULL)
                         | function_list     { $$ = $1; }  // Return the tree that build on function_list
                         ;
 
-optional_var :  /* empty */             { $$ = mknode("NO_VARS",NULL, NULL); }
-               | VAR declaration_list   { $$ = mknode("VAR",$2, NULL); } //Return tree from decleration_list.
+optional_var :  /* empty */             { $$ = NULL; }
+               | VAR declaration_list   { $$ = $2; }     //Return tree from decleration_list.
                ;
 
-statement_list:  statement                  { $$ = $1; }
-               | statement statement_list   { $$ = mknode("STATMENTS", $1, $2); }
+statement_list:  statement              { $$ = $1; }
+               | statement statement_list   
+               {
+                  node* temp = $1;
+                  while(temp->right != NULL)
+                    temp = temp->right;
+                  temp->right = $2;  
+                  $$ = $1 ;
+               }
                ;
 
 // about AST; each of these statments are node that we build on previous rules, so we return it back and dont create new tree 
@@ -270,32 +316,37 @@ call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
                      { $$ = mknode("CALL", mknode($2, NULL, NULL), $4); }
                  ;
 
-if_statement:IF experssion ':' single_block_or_block elif_list else_block 
+if_statement: IF experssion ':' single_block_or_block elif_list else_block 
             {
                 node* if_node = mknode("IF", $2, $4);
-                node* elif_node = $5;   // save _tree of elif or elifs
-                node* else_node = $6;   // save _tree of else or elses
-
-                if (elif_node) {    // want to check if theres elif.
-                    mknode("IF_FULL", if_node, mknode("ELIFS", elif_node, else_node));
-                } else {
-                    $$ = mknode("IF_FULL", if_node,else_node);
-                }
+                if ($5 != NULL)
+                    if_node = mknode("IF-ELSE", if_node, $5);
+                if ($6 != NULL)
+                    if_node = mknode("IF_ELIF_ELSE", if_node, $6);
+                $$ = if_node;
             }
             ;
 
-elif_list:  /* empty */     { $$ = mknode("LINE261FIX", NULL, NULL); }
+elif_list:  /* empty */   {$$ = NULL;}  /*{ $$ = mknode("LINE330FIX", NULL, NULL); }*/ 
             | elif_blocks   { $$ = $1; }
             ;
 
 elif_blocks:  elif_block                 { $$ = $1; }   // AST: if theres only one block - return it.
-            | elif_blocks elif_block     { $$ = mknode("ELIF_LIST", $1, $2); }  // AST: if have more than 1 - create node to each block
+            | elif_blocks elif_block     
+            {
+                node* temp = $1;
+                while(temp->right != NULL)
+                   temp = temp->right;
+                temp->right = $2;  
+                $$ = $1 ;
+            }
+              // AST: if have more than 1 - create node to each block
             ;
 
 elif_block: ELIF experssion ':' single_block_or_block  { $$ = mknode("ELIF", $2, $4); } 
             ;
 
-else_block:  /* empty */                        { $$ = mknode("NO_ELSE", NULL, NULL); }
+else_block:  /* empty */         { $$ = NULL; }     /*{ $$ = mknode("NO_ELSE", NULL, NULL); } */
             | ELSE ':' single_block_or_block    { $$ = mknode("ELSE", $3, NULL); }
             ;
 
@@ -308,17 +359,26 @@ while_statement: WHILE experssion ':' single_block_or_block  { $$ = mknode("WHIL
 
 // AST: we build DO ( from optional_var and statment_list ) and then connected it to DO_WHILE !
 do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWORD WHILE  experssion ';' 
-                    {
-                        node* body = mknode("BODY", $3, $5);
+                     {
+                        node* body = $3;
+                        if (body != NULL) {
+                            node* temp = body;
+                            while ( temp->right != NULL)
+                                temp = temp->right;
+                            temp->right = $5;
+                            body = $3;
+                        } else {
+                         body = $5;
+                        } 
                         $$ = mknode("DO_WHILE", body, mknode($7, NULL, NULL));
-                    }
+                     }
                     ;
 
 for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block 
                 {
-                    node* init = mknode("ASSIGN", mknode($3, NULL, NULL), $5); 
+                    node* init = mknode("=", mknode($3, NULL, NULL), $5); 
                     node* cond = $7;
-                    node* update = mknode("ASSIGN", mknode($9, NULL, NULL), $11);
+                    node* update = mknode("=", mknode($9, NULL, NULL), $11);
                     node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", cond, update));
                     $$ = mknode("FOR",control, $14);
                 }
@@ -331,7 +391,7 @@ experssion: simple_expression               { $$ = $1; }
            | experssion '/' experssion      { $$ = mknode("/", $1, $3); } 
            | experssion '<' experssion      { $$ = mknode("<", $1, $3); } 
            | experssion '>' experssion      { $$ = mknode(">", $1, $3); } 
-           | '|' experssion '|'             { $$ = mknode("ABS", $2, NULL); } // For size of variable //
+           | '|' experssion '|'             { $$ = mknode("SIZEOF", $2, NULL); } // For size of variable //
            | experssion DOUBLE_EQUAL experssion      { $$ = mknode("==", $1, $3); }
            | experssion NOT_EQUAL experssion         { $$ = mknode("!=", $1, $3); }
            | experssion GREATER_EQUAL experssion     { $$ = mknode(">=", $1, $3); }
@@ -350,7 +410,14 @@ simple_expression: '(' experssion ')'                  { $$ = $2; }
                     ;
 
 experssion_list:  experssion                          { $$ = $1; }
-                | experssion_list ',' experssion      { $$ = mknode("ARGS", $1, $3); }
+                | experssion_list ',' experssion      
+                { 
+                   node* temp = $1;
+                   while(temp->right != NULL)
+                     temp = temp->right;
+                   temp->right = $3;  
+                   $$ = $1 ;
+                }
                 ;
 
 /* For option to call func with assign, for example: x = call foo(a,b) */
@@ -373,13 +440,12 @@ int yyerror(char *s) {
     return 0;
 }
 
-extern int yyparse();
-extern node* root;
 
 int main() {
     printf("Starting to parse input ..... \n");
     if (yyparse() == 0) {
         printf("\nYEAH! Parse Successful!\n");
+        printf("Here is the AST tree:\n\n");
         if (root != NULL) {
             printtree(root, 0);
             printf("\n");
