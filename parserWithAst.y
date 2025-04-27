@@ -24,23 +24,21 @@ node* mknode(char *token, node *left, node *right) {
     return newnode;
 }
 
-void printtree(node *tree) {
-    if (tree == NULL)
-        return;
+void printtree(node *tree, int level) {
+    if (tree == NULL) return;
+    for(int i = 0; i < level; i++)
+        printf(" ");
     if (tree->left || tree->right)
         printf("(");
-    
     printf("%s", tree->token);
-    
     if (tree->left) {
-        printf(" ");
-        printtree(tree->left);
+        printf("\n");
+        printtree(tree->left, level + 1);
     }
     if (tree->right) {
-        printf(" ");
-        printtree(tree->right);
+        printf("\n");
+        printtree(tree->right, level + 1);
     }
-
     if (tree->left || tree->right)
         printf(")");
 }
@@ -48,8 +46,6 @@ void printtree(node *tree) {
 // מגדירים root גלובלי שישמר את העץ
 node* root = NULL;
 
-// טיפוס של YYSTYPE
-#define YYSTYPE struct node*
 %}
 
 %union {
@@ -67,24 +63,24 @@ node* root = NULL;
 
 %token <string> BOOL CHAR INT REAL STRING
 %token <string> INT_PTR CHAR_PTR REAL_PTR
-%token IF ELIF ELSE WHILE FOR
-%token TYPE VAR PAR RETURN_KEYWORD NULL_KEYWORD DO RETURNS
-%token BEGIN_KEYWORD END_KEYWORD DEF CALL
+%token <string> IF ELIF ELSE WHILE FOR
+%token <string> TYPE VAR PAR RETURN_KEYWORD NULL_KEYWORD DO RETURNS
+%token <string> BEGIN_KEYWORD END_KEYWORD DEF CALL
 %token <string> TRUE_LITERAL FALSE_LITERAL
 %token <string> HEX_LITERAL INT_LITERAL REAL_LITERAL STRING_LITERAL CHAR_LITERAL
 %token <string> IDENTIFIER
 
-/*
+
 %type <node> program function_list function return_value parameter_list parameter
 %type <node> type declaration_list declaration variable_list variable1
 %type <node> literal code_block inner_block optional_function_list optional_var
 %type <node> statement_list statement lvalue simple_statement return_statement
 %type <node> call_statement if_statement elif_list elif_blocks elif_block else_block
 %type <node> single_block_or_block while_statement do_while_statement for_statement
-%type <node> experssion simple_expression experssion_list pointer_experssion
-*/ 
+%type <node> experssion simple_expression experssion_list pointer_experssion call_experssion
 
-%type program function_list 
+/*
+%type <node> program function_list
 %type function return_value parameter_list parameter
 %type type declaration_list declaration variable_list variable1
 %type literal code_block inner_block optional_function_list optional_var
@@ -92,82 +88,132 @@ node* root = NULL;
 %type call_statement if_statement elif_list elif_blocks elif_block else_block
 %type single_block_or_block while_statement do_while_statement for_statement
 %type experssion simple_expression experssion_list pointer_experssion
-
+*/
 
 
 %start program
 
 %%
 
-program: function_list 
+program: function_list  
+        { 
+            $$ = mknode("CODE", $1, NULL); 
+            root = $$;
+        } 
         ;
 
-function_list:  function                
-              | function_list function  
+function_list:  function                    { $$ = $1; }
+              | function_list function      { $$ = mknode("CODE", $1, $2); }
               ;
 
 
 function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
-            
+            {
+                node* name = mknode($2, NULL, NULL);    // Function name
+                node* pars = mknode("PARS", $4, NULL);  // Pararmeter
+                node* ret = mknode("RET", $7, NULL);    // Return_value
+                node* body = mknode("BODY", $8, NULL);  // Code_block 
+            } 
             ;
 
-return_value :  /*empty*/           
-               | RETURNS type      
+return_value :  /*empty*/       { $$ = mknode("NO_RET", NULL, NULL); }         
+               | RETURNS type   { $$ = mknode("RET", $2, NULL); }    
                ;
 
 // about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
-parameter_list: /*empty*/                         
-                | parameter                       
-                | parameter_list ';' parameter    
+parameter_list: /*empty*/                       { $$ = NULL; }                      
+                | parameter                     { $$ = $1; } 
+                | parameter_list ';' parameter  { $$ = mknode("PARS_LIST", $1, $3); }  
                 ;
 
 // about ast: we want to print example: (par1 INT x) --> so we use buffer.
-parameter: PAR type ':' IDENTIFIER 
-            ;
+parameter: PAR type ':' IDENTIFIER  
+           { 
+                char buffer[200];
+                sprintf(buffer, "%s %s", $2->token, $4);
+                $$ = mknode(buffer, NULL, NULL);  
+           }
+           ;
 
 // about ast: each of types are return from scanner to PAR or return_value.
-type:  INT       
-     | REAL      
-     | CHAR      
-     | STRING    
-     | BOOL      
-     | INT_PTR   
-     | CHAR_PTR  
-     | REAL_PTR  
+type:  INT          { $$ = mknode($1, NULL,NULL); }
+     | REAL         { $$ = mknode($1, NULL,NULL); }
+     | CHAR         { $$ = mknode($1, NULL,NULL); }
+     | STRING       { $$ = mknode($1, NULL,NULL); }
+     | BOOL         { $$ = mknode($1, NULL,NULL); }
+     | INT_PTR      { $$ = mknode($1, NULL,NULL); }
+     | CHAR_PTR     { $$ = mknode($1, NULL,NULL); }
+     | REAL_PTR     { $$ = mknode($1, NULL,NULL); }
      ;
 
-declaration_list: declaration | declaration_list declaration ;
+declaration_list:  declaration                    { $$ = $1; }
+                 | declaration_list declaration   { $$ = mknode("DECLERATION_LIST", $1, $2); }
+                 ;
 
-declaration: TYPE type ':' variable_list ';' ;
+declaration: TYPE type ':' variable_list ';'     { $$ = mknode("DECLERATION", $2, $4); }
+             ;
 
-variable_list: variable1 | variable_list ',' variable1 ;
+variable_list:  variable1                         { $$ = $1;}
+              | variable_list ',' variable1      { $$ = mknode("VARS", $1, $3); }
+              ;
 
 variable1:  IDENTIFIER                                          // regular variable
+            { $$ = mknode($1, NULL, NULL); }                    // AST: Create node with variable name.
+
           | IDENTIFIER ':' literal                              // initialized var
+            { $$ = mknode("=",mknode($1, NULL, NULL), $3); }    // AST: create node "="
+
           | IDENTIFIER '[' INT_LITERAL ']'                      // array (example: a[10] )
+            { $$ = mknode("ARRAY", mknode($1, NULL, NULL),mknode($3, NULL, NULL)); }  // AST: node (name to size)
+
           | IDENTIFIER '[' INT_LITERAL ']' ':' STRING_LITERAL   // array with value or init
+            { 
+              node* array_node = mknode("ARRAY", mknode($1, NULL, NULL),mknode($3, NULL,NULL));
+              $$ = mknode("=", array_node, mknode($6,NULL,NULL));  
+            }
           ;
 
-literal: INT_LITERAL | REAL_LITERAL | CHAR_LITERAL | HEX_LITERAL
-        | STRING_LITERAL | TRUE_LITERAL | FALSE_LITERAL | NULL_KEYWORD ; 
+literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL); }
+        | REAL_LITERAL      { $$ = mknode($1, NULL,NULL); }
+        | CHAR_LITERAL      { $$ = mknode($1, NULL,NULL); }
+        | HEX_LITERAL       { $$ = mknode($1, NULL,NULL); }
+        | STRING_LITERAL    { $$ = mknode($1, NULL,NULL); }
+        | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL); }
+        | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL); }
+        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL); }
+        ; 
  
-code_block: optional_var BEGIN_KEYWORD inner_block END_KEYWORD ;
+code_block: optional_var BEGIN_KEYWORD inner_block END_KEYWORD 
+            {   
+                $$ = mknode("BODY", $1, $3);
+            }
+            ;
 
-inner_block : optional_function_list statement_list;
+inner_block : optional_function_list statement_list
+              {
+                $$ = mknode("INNER_BLOCK", $1, $2);
+              }
+              ;
+optional_function_list:   /* empty */       { $$ = mknode("NO_FUNC", NULL, NULL); } // We dont want segmentation fualt...
+                        | function_list     { $$ = $1; }  // Return the tree that build on function_list
+                        ;
 
-optional_function_list: /* empty */  | function_list;
+optional_var :  /* empty */             { $$ = mknode("NO_VARS",NULL, NULL); }
+               | VAR declaration_list   { $$ = $2; } //Return tree from decleration_list.
+               ;
 
-optional_var : /* empty */ | VAR declaration_list ;
+statement_list:  statement                  { $$ = $1; }
+               | statement statement_list   { $$ = mknode("STATMENTS", $1, $2); }
+               ;
 
-statement_list: statement |  statement statement_list ;
-
-statement:    simple_statement  
-            | call_statement
-            | if_statement
-            | while_statement 
-            | do_while_statement
-            | for_statement
-            | code_block
+// about AST; each of these statments are node that we build on previous rules, so we return it back and dont create new tree 
+statement:    simple_statement      { $$ = $1; }
+            | call_statement        { $$ = $1; }
+            | if_statement          { $$ = $1; }
+            | while_statement       { $$ = $1; }
+            | do_while_statement    { $$ = $1; }
+            | for_statement         { $$ = $1; }
+            | code_block            { $$ = $1; }
             ;
 
  /*
@@ -177,76 +223,119 @@ lvalueFix:   IDENTIFIER
 
 /* This is the left side of the assignment... */
 lvalue:   IDENTIFIER 
+            { $$ = mknode($1, NULL, NULL); }
         | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
+            { $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); } // AST: we want IDENTIFIER and ARRAY-INDEX
         | '*' IDENTIFIER               // For pointers, For example: *x
+            { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
         ; 
 
-simple_statement:  lvalue '=' experssion ';' 
-                 | return_statement; 
+simple_statement:  lvalue '=' experssion ';'    { $$ = mknode("ASSIGN", $1, $3); }
+                 | return_statement             { $$ = $1; }
+                 ;
 
-return_statement: RETURN_KEYWORD experssion ';';
+return_statement: RETURN_KEYWORD experssion ';' { $$ = mknode("RETURN", $2, NULL); }
+                 ;
 
-/* For procedure only, for example: call foo(), for function is in line 150 */
+/* For procedure only, for example: call foo(), for function is in line 300 */
 call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
+                     { $$ = mknode("CALL", mknode($2, NULL, NULL), NULL); }
                  | CALL IDENTIFIER '(' experssion_list ')' ';'    // Procedure with parameter
+                     { $$ = mknode("CALL", mknode($2, NULL, NULL), $4); }
+                 ;
 
-if_statement:IF experssion ':' single_block_or_block elif_list else_block ;
+if_statement:IF experssion ':' single_block_or_block elif_list else_block 
+            {
+                node* if_node = mknode("IF", $2, $4);
+                node* elif_node = $5;   // save _tree of elif or elifs
+                node* else_node = $6;   // save _tree of else or elses
 
-elif_list:
-    /* empty */ | elif_blocks ;
+                if (elif_node) {    // want to check if theres elif.
+                    mknode("IF_FULL", if_node, mknode("ELIFS", elif_node, else_node));
+                } else {
+                    $$ = mknode("IF_FULL", if_node,else_node);
+                }
+            }
+            ;
 
-elif_blocks:
-    elif_block | elif_blocks elif_block ;
+elif_list:  /* empty */     { $$ = NULL; }
+            | elif_blocks   { $$ = $1; }
+            ;
 
-elif_block:
-    ELIF experssion ':' single_block_or_block ;
+elif_blocks:  elif_block                 { $$ = $1; }   // AST: if theres only one block - return it.
+            | elif_blocks elif_block     { $$ = mknode("ELIF_LIST", $1, $2); }  // AST: if have more than 1 - create node to each block
+            ;
 
-else_block:
-    /* empty */ | ELSE ':' single_block_or_block ;
+elif_block: ELIF experssion ':' single_block_or_block  { $$ = mknode("ELIF", $2, $4); } 
+            ;
 
-single_block_or_block:
-    simple_statement | code_block ;
+else_block:  /* empty */                        { $$ = mknode("NO_ELSE", NULL, NULL); }
+            | ELSE ':' single_block_or_block    { $$ = mknode("ELSE", $3, NULL); }
+            ;
 
-while_statement: WHILE experssion ':' single_block_or_block;
+single_block_or_block:  simple_statement   { $$ = $1; } 
+                       | code_block        { $$ = $1; } 
+                       ;
 
-do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWORD WHILE  experssion ';' ;
+while_statement: WHILE experssion ':' single_block_or_block  { $$ = mknode("WHILE", $2, $4); }
+                 ;
 
-for_statement:FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block ;
-
-experssion: simple_expression
-           | experssion '+' experssion
-           | experssion '-' experssion
-           | experssion '*' experssion
-           | experssion '/' experssion
-           | experssion '<' experssion
-           | experssion '>' experssion
-           | '|' experssion '|'         // For size of variable
-           | experssion DOUBLE_EQUAL experssion
-           | experssion NOT_EQUAL experssion
-           | experssion GREATER_EQUAL experssion
-           | experssion LESS_EQUAL experssion
-           | experssion AND experssion
-           | experssion OR experssion
-           | NOT experssion
-           | call_experssion 
-          ;
-
-simple_expression: '(' experssion ')' 
-                    | IDENTIFIER '[' experssion ']'
-                    | pointer_experssion
-                    | literal 
-                    | IDENTIFIER 
+// AST: we build DO ( from optional_var and statment_list ) and then connected it to DO_WHILE !
+do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWORD WHILE  experssion ';' 
+                    {
+                        node* body = mknode("BODY", $3, $5);
+                        $$ = mknode("DO_WHILE", body, mknode($7, NULL, NULL));
+                    }
                     ;
 
-experssion_list: experssion | experssion_list ',' experssion ;
+for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block 
+                {
+                    node* init = mknode("ASSIGN", mknode($3, NULL, NULL), $5); 
+                    node* cond = $7;
+                    node* update = mknode("ASSIGN", mknode($9, NULL, NULL), $11);
+                    node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", cond, update));
+                    $$ = mknode("FOR",control, $14);
+                }
+              ;
+
+experssion: simple_expression               { $$ = $1; } 
+           | experssion '+' experssion      { $$ = mknode("+", $1, $3); } 
+           | experssion '-' experssion      { $$ = mknode("-", $1, $3); } 
+           | experssion '*' experssion      { $$ = mknode("*", $1, $3); } 
+           | experssion '/' experssion      { $$ = mknode("/", $1, $3); } 
+           | experssion '<' experssion      { $$ = mknode("<", $1, $3); } 
+           | experssion '>' experssion      { $$ = mknode(">", $1, $3); } 
+           | '|' experssion '|'             { $$ = mknode("ABS", $2, NULL); } // For size of variable //
+           | experssion DOUBLE_EQUAL experssion      { $$ = mknode("==", $1, $3); }
+           | experssion NOT_EQUAL experssion         { $$ = mknode("!=", $1, $3); }
+           | experssion GREATER_EQUAL experssion     { $$ = mknode(">=", $1, $3); }
+           | experssion LESS_EQUAL experssion        { $$ = mknode("<=", $1, $3); }
+           | experssion AND experssion               { $$ = mknode("AND", $1, $3); }
+           | experssion OR experssion                { $$ = mknode("OR", $1, $3); }
+           | NOT experssion                          { $$ = mknode("NOT", $2, NULL); }
+           | call_experssion                         { $$ = $1; }
+          ;
+
+simple_expression: '(' experssion ')'                  { $$ = $2; }
+                    | IDENTIFIER '[' experssion ']'    { $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); }
+                    | pointer_experssion               { $$ = $1; }
+                    | literal                          { $$ = $1; }
+                    | IDENTIFIER                       { $$ = mknode($1, NULL, NULL); }
+                    ;
+
+experssion_list:  experssion                          { $$ = $1; }
+                | experssion_list ',' experssion      { $$ = mknode("ARGS", $1, $3); }
+                ;
 
 /* For option to call func with assign, for example: x = call foo(a,b) */
-call_experssion:   CALL IDENTIFIER '('  ')' 
-                 | CALL IDENTIFIER '(' experssion_list ')';
+call_experssion:   CALL IDENTIFIER '('  ')'                 { $$ = mknode("CALL", mknode($2, NULL,NULL), NULL);}
+                 | CALL IDENTIFIER '(' experssion_list ')' { $$ = mknode("CALL", mknode($2, NULL, NULL), $4); }
+                 ;
 
-
-pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
+pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
+                        { $$ = mknode("DEREF", $2, NULL); }
                     | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
+                        { $$ = mknode("ADDRESS", $2, NULL); }
                     ; 
 
 %%
@@ -262,11 +351,11 @@ extern int yyparse();
 extern node* root;
 
 int main() {
-    printf("Starting to parse input ..... ");
+    printf("Starting to parse input ..... \n");
     if (yyparse() == 0) {
         printf("\nYEAH! Parse Successful!\n");
         if (root != NULL) {
-            printtree(root);
+            printtree(root, 0);
             printf("\n");
         } else {
             printf("No AST generated.\n");
