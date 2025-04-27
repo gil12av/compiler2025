@@ -4,10 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 extern int yylineno;
-/* For debug only */
+/* For debug only 
 int yywrap(){
   return 1;
-} 
+} */
 %}
 
 %%
@@ -28,7 +28,7 @@ while   { return WHILE; }
 for     { return FOR; }	
 type      { return TYPE; }
 var	      { return VAR; }
-par[0-9]+ { return PAR; }	
+par[0-9]+ { yylval.string = strdup(yytext); return PAR; }	
 return  { return RETURN_KEYWORD; }
 null    { return NULL_KEYWORD; }
 do      { return DO; }
@@ -43,17 +43,17 @@ or      { return OR; }
 		
  /* Operator Lexemes */
 
-"/"		{ return yytext[0]; }
-"="		{ return yytext[0]; }
-">" 	{ return yytext[0]; }
-"<"		{ return yytext[0]; }
-"-"		{ return yytext[0]; }
-"+"		{ return yytext[0]; }
-"*"		{ return yytext[0]; }
-"&"		{ return yytext[0]; }
+"/"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"="		{ yylval.string = strdup(yytext); return yytext[0]; }
+">" 	{ yylval.string = strdup(yytext); return yytext[0]; }
+"<"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"-"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"+"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"*"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"&"		{ yylval.string = strdup(yytext); return yytext[0]; }
 	
  /* Compare */
-"==" 	 { return DOUBLE_EQUAL; }
+"==" 	 { yylval.string = strdup(yytext); return DOUBLE_EQUAL; }
 "!=" 	 { return NOT_EQUAL; }
 ">=" 	 { return GREATER_EQUAL; }
 "<=" 	 { return LESS_EQUAL; }
@@ -62,24 +62,24 @@ or      { return OR; }
 TRUE 	 { return TRUE_LITERAL; }
 FALSE  { return FALSE_LITERAL; }
 
-"\""[^"]*"\""                           { return STRING_LITERAL; }
-\'[.]\'	                                { return CHAR_LITERAL; }
-[1-9][0-9]*                             { return INT_LITERAL; }
-0                                       { return INT_LITERAL; }
-[-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { return REAL_LITERAL; }
+"\""[^"]*"\""                           { yylval.string = strdup(yytext); return STRING_LITERAL; }
+\'[.]\'	                                { yylval.string = strdup(yytext); return CHAR_LITERAL; }
+[1-9][0-9]*                             { yylval.string = strdup(yytext); return INT_LITERAL; }
+0                                       { yylval.string = strdup(yytext); return INT_LITERAL; }
+[-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { yylval.string = strdup(yytext); return REAL_LITERAL; }
                      
  /* Identifier */
-[a-zA-Z][a-zA-Z0-9_]*   { return IDENTIFIER; }
+[a-zA-Z][a-zA-Z0-9_]*   { yylval.string = strdup(yytext); return IDENTIFIER; }
 
  /* Other lexams */
-";"		{ return yytext[0]; }
-","	 	{ return yytext[0]; }
-"("	 	{ return yytext[0]; }
-")"		{ return yytext[0]; }
-"["	 	{ return yytext[0]; }
-"]"	 	{ return yytext[0]; }
-":"	 	{ return yytext[0]; }
-"|"	 	{ return yytext[0]; }
+";"		{ yylval.string = strdup(yytext); return yytext[0]; }
+","	 	{ yylval.string = strdup(yytext); return yytext[0]; }
+"("	 	{ yylval.string = strdup(yytext); return yytext[0]; }
+")"		{ yylval.string = strdup(yytext); return yytext[0]; }
+"["	 	{ yylval.string = strdup(yytext); return yytext[0]; }
+"]"	 	{ yylval.string = strdup(yytext); return yytext[0]; }
+":"	 	{ yylval.string = strdup(yytext); return yytext[0]; }
+"|"	 	{ yylval.string = strdup(yytext); return yytext[0]; }
 \n    { yylineno++; }
 
 %%	
