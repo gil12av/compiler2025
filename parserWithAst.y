@@ -136,25 +136,27 @@ function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block
                 node* body = mknode("BODY", $8, NULL);  // Code_block 
 
                 node* func_def = mknode("", name, pars);
-                node* temp = mknode("FUNC_PARTS", ret, body);
-                $$ = mknode("FUNC_DEF",func_def, temp);
+                node* temp = mknode("", ret, body);
+                $$ = mknode("FUNC",func_def, temp);
             } 
             ;
 
-return_value :  /*empty*/       { $$ = mknode("NO_RET", NULL, NULL); }         
-               | RETURNS type   { $$ = mknode("RET",mknode($2->token, NULL,NULL), NULL); }    
+return_value :  /*empty*/       { $$ = mknode("NONE", NULL, NULL); }         
+               | RETURNS type   { $$ = mknode("",mknode($2->token, NULL,NULL), NULL); }    
                ;
 
 // about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
 parameter_list: /*empty*/                       { $$ = mknode("EMPTY_PAR", NULL, NULL); }                      
                 | parameter                     { $$ = $1; } 
-                | parameter_list ';' parameter  { $$ = mknode("PARS_LIST", $1, $3); }  
+                | parameter_list ';' parameter  { $$ = mknode("", $1, $3); }  
                 ;
 
 // about ast: we want to print example: (par1 INT x) --> so we use buffer.
 parameter: PAR type ':' IDENTIFIER  
            { 
-                $$ = mknode("PAR", mknode($2->token, NULL, NULL), mknode($4, NULL, NULL)); 
+                char buffer[256];
+                sprintf(buffer, "%s %s %s", $1, $2->token, $4);
+                $$ = mknode(buffer, NULL, NULL);
            }
            ;
 
@@ -170,14 +172,14 @@ type:  INT          { $$ = mknode("INT", NULL,NULL); }
      ;
 
 declaration_list:  declaration                    { $$ = $1; }
-                 | declaration_list declaration   { $$ = mknode("DECLERATION_LIST", $1, $2); }
+                 | declaration_list declaration   { $$ = mknode("LINE175", $1, $2); }
                  ;
 
-declaration: TYPE type ':' variable_list ';'     { $$ = mknode("DECLERATION", $2, $4); }
+declaration: TYPE type ':' variable_list ';'     { $$ = mknode("", $2, $4); }
              ;
 
 variable_list:  variable1                         { $$ = $1;}
-              | variable_list ',' variable1      { $$ = mknode("VARS", $1, $3); }
+              | variable_list ',' variable1      { $$ = mknode("LINE182", $1, $3); }
               ;
 
 variable1:  IDENTIFIER                                          // regular variable
@@ -208,21 +210,22 @@ literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL); }
  
 code_block: optional_var BEGIN_KEYWORD inner_block END_KEYWORD 
             {   
-                $$ = mknode("BODY", $1, $3);
+                $$ = mknode("", $1, $3);
             }
             ;
 
 inner_block : optional_function_list statement_list
               {
-                $$ = mknode("INNER_BLOCK", $1, $2);
+                $$ = mknode("BLOCK", $1, $2);
               }
               ;
-optional_function_list:   /* empty */       { $$ = mknode("NO_FUNC", NULL, NULL); } // We dont want segmentation fualt...
+
+optional_function_list:   /* empty */       { $$ = mknode("LINE223", NULL, NULL); } // We dont want segmentation fualt...
                         | function_list     { $$ = $1; }  // Return the tree that build on function_list
                         ;
 
 optional_var :  /* empty */             { $$ = mknode("NO_VARS",NULL, NULL); }
-               | VAR declaration_list   { $$ = $2; } //Return tree from decleration_list.
+               | VAR declaration_list   { $$ = mknode("VAR",$2, NULL); } //Return tree from decleration_list.
                ;
 
 statement_list:  statement                  { $$ = $1; }
@@ -253,11 +256,11 @@ lvalue:   IDENTIFIER
             { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
         ; 
 
-simple_statement:  lvalue '=' experssion ';'    { $$ = mknode("ASSIGN", $1, $3); }
+simple_statement:  lvalue '=' experssion ';'    { $$ = mknode("=", $1, $3); }
                  | return_statement             { $$ = $1; }
                  ;
 
-return_statement: RETURN_KEYWORD experssion ';' { $$ = mknode("RETURN", $2, NULL); }
+return_statement: RETURN_KEYWORD experssion ';' { $$ = mknode("RET", $2, NULL); }
                  ;
 
 /* For procedure only, for example: call foo(), for function is in line 300 */
