@@ -1,6 +1,18 @@
-def myFunc(par1 int: x): returns int
-var
-    type int:y;
+def foo(par1 int:x; par2 int:y; par3 int:z; par4 real:f):
 begin
-     y = 5;
-end         
+    if x > y:
+    begin
+        x = x + y;
+    end
+    else:
+    begin
+        y = x + y + z;
+        z = y * 2;
+        f = z;
+    end
+end
+
+def goo(): returns char
+begin
+    return ‘a’;
+end
