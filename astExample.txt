@@ -1,0 +1,6 @@
+def myFunc(par1 int: x): returns int
+var
+    type int:y;
+begin
+     y = 5;
+end         
