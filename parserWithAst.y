@@ -37,29 +37,26 @@ node* mknode(char *token, node *left, node *right) {
     return newnode;
 }
 
-void printtree(node *tree, int level) {
+void printtree(node* tree, int level){
     if (tree == NULL) return;
-    for(int i = 0; i < level; i++)
-        printf(" ");
+
+    for(int i = 0; i < level; i++) printf(" ");
+
+    printf("(");
+    if(tree->token != NULL) {
+        printf("%s", tree->token);
+    }    
     
-    if(tree->left || tree->right){
-        printf("(%s\n", tree->token);
-    
-        if (tree->left) {
-        printtree(tree->left, level + 1);
-         }
-
-        if (tree->right) {
-        printtree(tree->right, level + 1);
-        }
-
-        for(int i = 0; i < level; i++)
-            printf(" ");
-
+    if (tree->left != NULL) {
         printf(")\n");
-    } else {
-        printf("%s\n", tree->token);
-    }   
+        printtree(tree->left, level + 1);
+    }
+
+    if (tree->right!= NULL) {
+        printf(")\n");
+        printtree(tree->right, level + 1);
+    }
+    
 }
 
 // מגדירים root גלובלי שישמר את העץ
