@@ -1,0 +1,78 @@
+Starting to parse input ..... 
+                                                                                           ‘’
+YEAH! Parse Successful!
+(CODE
+ (FUNC_LIST
+  (FUNC
+   (
+    foo
+    (PARS
+     (
+      (
+       (
+        par1 INT x
+        par2 INT y)
+       par3 INT z)
+      par4 REAL f)))
+   (
+    (RET
+     NONE)
+    (BODY
+     (
+      NO_VARS
+      (BLOCK
+       LINE223
+       (IF_FULL
+        (IF
+         (>
+          x
+          y)
+         (
+          NO_VARS
+          (BLOCK
+           LINE223
+           (=
+            x
+            (+
+             x
+             y)))))
+        (ELIFS
+         LINE261FIX
+         (ELSE
+          (
+           NO_VARS
+           (BLOCK
+            LINE223
+            (STATMENTS
+             (=
+              y
+              (+
+               (+
+                x
+                y)
+               z))
+             (STATMENTS
+              (=
+               z
+               (*
+                y
+                2))
+              (=
+               f
+               z)))))))))))))
+  (FUNC
+   (
+    goo
+    (PARS
+     EMPTY_PAR))
+   (
+    (RET
+     (
+      CHAR))
+    (BODY
+     (
+      NO_VARS
+      (BLOCK
+       LINE223
+       (RET
+        a))))))))
