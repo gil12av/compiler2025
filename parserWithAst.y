@@ -66,6 +66,7 @@ void printtree(node *tree, int level) {
 // מגדירים root גלובלי שישמר את העץ
 node* root = NULL;
 
+
 %}
 
 %union {
@@ -123,7 +124,7 @@ program: function_list
         ;
 
 function_list:  function                    { $$ = $1; }
-              | function_list function      { $$ = mknode("CODE", $1, $2); }
+              | function_list function      { $$ = mknode("FUNC_LIST", $1, $2); }
               ;
 
 
@@ -134,18 +135,18 @@ function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block
                 node* ret = mknode("RET", $7, NULL);    // Return_value
                 node* body = mknode("BODY", $8, NULL);  // Code_block 
 
-                node* func_def = mknode("FUNC", name, pars);
+                node* func_def = mknode("", name, pars);
                 node* temp = mknode("FUNC_PARTS", ret, body);
                 $$ = mknode("FUNC_DEF",func_def, temp);
             } 
             ;
 
 return_value :  /*empty*/       { $$ = mknode("NO_RET", NULL, NULL); }         
-               | RETURNS type   { $$ = mknode("RET", $2, NULL); }    
+               | RETURNS type   { $$ = mknode("RET",mknode($2->token, NULL,NULL), NULL); }    
                ;
 
 // about ast: if there just 1 parameter, we return PARS and if theres more than 1 we create node PARS
-parameter_list: /*empty*/                       { $$ = mknode("LINE124FIX", NULL, NULL); }                      
+parameter_list: /*empty*/                       { $$ = mknode("EMPTY_PAR", NULL, NULL); }                      
                 | parameter                     { $$ = $1; } 
                 | parameter_list ';' parameter  { $$ = mknode("PARS_LIST", $1, $3); }  
                 ;
@@ -153,21 +154,19 @@ parameter_list: /*empty*/                       { $$ = mknode("LINE124FIX", NULL
 // about ast: we want to print example: (par1 INT x) --> so we use buffer.
 parameter: PAR type ':' IDENTIFIER  
            { 
-                char buffer[200];
-                sprintf(buffer, "%s %s", $2->token, $4);
-                $$ = mknode(buffer, NULL, NULL);  
+                $$ = mknode("PAR", mknode($2->token, NULL, NULL), mknode($4, NULL, NULL)); 
            }
            ;
 
 // about ast: each of types are return from scanner to PAR or return_value.
-type:  INT          { $$ = mknode($1, NULL,NULL); }
-     | REAL         { $$ = mknode($1, NULL,NULL); }
-     | CHAR         { $$ = mknode($1, NULL,NULL); }
-     | STRING       { $$ = mknode($1, NULL,NULL); }
-     | BOOL         { $$ = mknode($1, NULL,NULL); }
-     | INT_PTR      { $$ = mknode($1, NULL,NULL); }
-     | CHAR_PTR     { $$ = mknode($1, NULL,NULL); }
-     | REAL_PTR     { $$ = mknode($1, NULL,NULL); }
+type:  INT          { $$ = mknode("INT", NULL,NULL); }
+     | REAL         { $$ = mknode("REAL", NULL,NULL); }
+     | CHAR         { $$ = mknode("CHAR", NULL,NULL); }
+     | STRING       { $$ = mknode("STRING", NULL,NULL); }
+     | BOOL         { $$ = mknode("BOOL", NULL,NULL); }
+     | INT_PTR      { $$ = mknode("INT_PTR", NULL,NULL); }
+     | CHAR_PTR     { $$ = mknode("CHAR_PTR", NULL,NULL); }
+     | REAL_PTR     { $$ = mknode("REAL_PTR", NULL,NULL); }
      ;
 
 declaration_list:  declaration                    { $$ = $1; }
