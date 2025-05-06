@@ -1,13 +1,10 @@
 %{
 
-#include "y.tab.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "parser.tab.h"
 extern int yylineno;
-/* For debug only 
-int yywrap(){
-  return 1;
-} */
+
 %}
 
 %%
@@ -70,6 +67,9 @@ FALSE  { return FALSE_LITERAL; }
                      
  /* Identifier */
 [a-zA-Z][a-zA-Z0-9_]*   { yylval.string = strdup(yytext); return IDENTIFIER; }
+
+ /* Comments */
+"#->"([^<]*|\n)*"<-#" {yylval.string = strdup(yytext); return COMMENT;}
 
  /* Other lexams */
 ";"		{ yylval.string = strdup(yytext); return yytext[0]; }
