@@ -34,19 +34,6 @@ node* root = NULL;
 
 /*the left , right is the key words are for the order of the experssion */
 
-/* TRY something new */
-%token UMINUS DEREF ADDRESS SIZEOF PIPE
-%left OR
-%left AND
-%left DOUBLE_EQUAL NOT_EQUAL
-%left '<' '>' GREATER_EQUAL LESS_EQUAL
-%left '+' '-'
-%left '*' '/'
-%right NOT UMINUS
-%right DEREF ADDRESS SIZEOF
-
-/* END of try somwthing new */
-
 /*
 %left '+' '-'
 %left '*' '/'
