@@ -192,12 +192,12 @@ parameter: PAR type ':' IDENTIFIER
            ;
 
 // about ast: each of types are return from scanner to PAR or return_value.
-type:  INT          { $$ = mknode("INT", NULL,NULL); $$->type = T_INT; }
-     | REAL         { $$ = mknode("REAL", NULL,NULL); $$->type = T_REAL; }
-     | CHAR         { $$ = mknode("CHAR", NULL,NULL); $$->type = T_CHAR; }
-     | STRING       { $$ = mknode("STRING", NULL,NULL); $$->type = T_STRING; }
-     | BOOL         { $$ = mknode("BOOL", NULL,NULL); $$->type = T_BOOL; }
-     | INT_PTR      { $$ = mknode("INT_PTR", NULL,NULL); $$->type = T_INT_PTR; }
+type:  INT          { $$ = mknode("INT", NULL,NULL);      $$->type = T_INT; }
+     | REAL         { $$ = mknode("REAL", NULL,NULL);     $$->type = T_REAL; }
+     | CHAR         { $$ = mknode("CHAR", NULL,NULL);     $$->type = T_CHAR; }
+     | STRING       { $$ = mknode("STRING", NULL,NULL);   $$->type = T_STRING; }
+     | BOOL         { $$ = mknode("BOOL", NULL,NULL);     $$->type = T_BOOL; }
+     | INT_PTR      { $$ = mknode("INT_PTR", NULL,NULL);  $$->type = T_INT_PTR; }
      | CHAR_PTR     { $$ = mknode("CHAR_PTR", NULL,NULL); $$->type = T_CHAR_PTR; }
      | REAL_PTR     { $$ = mknode("REAL_PTR", NULL,NULL); $$->type = T_REAL_PTR; }
      ;
@@ -244,7 +244,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type =  /* type of declears in this scope... */,
+                    .type = /*type of declears in this scope*/ ,
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -277,34 +277,77 @@ variable1:  IDENTIFIER       // regular variable
 
             }    
 
+            /* ==== Variable1 : ARRAY without init! === */
+
           | IDENTIFIER '[' INT_LITERAL ']'     // array ( example: a[10] )
             { 
                 char buffer[256];
                 sprintf(buffer, "%s[%s]", $1, $3);
                 $$ = mknode(buffer, NULL, NULL); 
-            }  // AST: node (name to size)
+              // AST: node (name to size)
+
+               //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type =  /* Go to decleration */ , 
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", $1);
+
+                $$->type = proto.type;    
+            }
+
+            /* ==== Variable1 : ARRAY with init! === */
 
           | IDENTIFIER '[' INT_LITERAL ']' ':' STRING_LITERAL   // array with value or init
             { 
                char buffer[256];
                 sprintf(buffer, "%s[%s] = %s", $1, $3, $6);
                 $$ = mknode(buffer, NULL, NULL); 
+            
+            //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type = ,/* Go to decleration */ ,
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", $1);
+
+                $$->type = proto.type;   
             }
           ;
 
-literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL); }
-        | REAL_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | CHAR_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | HEX_LITERAL       { $$ = mknode($1, NULL,NULL); }
-        | STRING_LITERAL    { $$ = mknode($1, NULL,NULL); }
-        | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL); }
-        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL); }
+literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
+        | REAL_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_REAL; }
+        | CHAR_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_CHAR; }
+        | HEX_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
+        | STRING_LITERAL    { $$ = mknode($1, NULL,NULL);  $$->type = T_STRING; }
+        | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
+        | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
+        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_PTR; }
         ; 
  
 code_block: optional_var BEGIN_KEYWORD Comments inner_block Comments END_KEYWORD 
             {   
+                /* SEMANTIC: OPEN NEW SCOPE*/
+                pushScope();
                 $$ = mknode("BLOCK", $1, $3);
+
+                /* SEMANTIC: CLOSE THE SCOPE*/
+                popScope();
+
             }
             ;
 
@@ -346,20 +389,67 @@ statement:    simple_statement      { $$ = $1; }
 
 /* This is the left side of the assignment... */
 lvalue:   IDENTIFIER 
-            { $$ = mknode($1, NULL, NULL); }
+            { 
+                $$ = mknode($1, NULL, NULL); 
+
+                /* Check for existing ====== VARIABLE ===== */
+                Symbol *s = lookup($1);
+                if(!s || s->kind !=K_VAR)
+                    semanticError("Unknown variable %s", $1);
+                
+                /* Save type of value */
+                $$->type = s->type;    
+            }
+
         | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
-            { $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); } // AST: we want IDENTIFIER and ARRAY-INDEX
+            { 
+                // AST: we want IDENTIFIER and ARRAY-INDEX
+                $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); 
+                
+                /* Check for existing ====== ARRAY ===== */
+                Symbol *s = lookup($1);
+                if(!s || s->kind !=K_VAR)
+                    semanticError("Unknown array %s", $1);
+                
+                /* Save type of value */
+                $$->type = s->type; 
+            } 
+        
+        
         | '*' IDENTIFIER               // For pointers, For example: *x
-            { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
+            { 
+                // AST: pointer approach
+                $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); 
+                   /* Check for existing ====== POINTER ===== */
+                Symbol *s = lookup($2);
+                if(!s || !isPointer(s->type) )
+                    semanticError("%s IS NOT A POINTER", $2);
+                
+                /* Save type of value */
+                $$->type = semTypeOfNode($$); 
+            } 
+        
+        
         | '&' IDENTIFIER               // For pointers, For example: *x
-            { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
+            { 
+                // AST: pointer approach
+                $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); 
+
+                     /* Check for existing ====== VARIABLE ===== */
+                Symbol *s = lookup($2);
+                if(!s)
+                    semanticError("Unknown variable %s", $2);
+                
+                /* Save type of value */
+                $$->type = semTypeOfNode($$); 
+            } 
         ; 
 
 simple_statement: lvalue '=' experssion ';'  Comments  
                     { 
                         //-- symbol_table - Part2 : --//
-                        Type lhs = semTypeOfValue($1);
-                        Type rhs = semTypeOfValue($3);
+                        Type lhs = semTypeOfLValue($1);
+                        Type rhs = semTypeOfNode($3);
                         if(!sumCheckAssign(lhs,rhs))
                             semanticError("Type mismatch in assignment");
 
