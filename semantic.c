@@ -52,13 +52,3 @@ Type resultBinary(int op,Type a,Type b){
     return T_INVALID;
 }
 
-Type resultUnary(int op,Type a){
-    switch(op){
-        case NOT:       return (a==T_BOOL)?T_BOOL:T_INVALID;
-        case UMINUS:    return isNumeric(a)?a:T_INVALID;  /* FIX: UMINUS מוגדר כ‑%token */
-        case DEREF:     return isPointer(a)?T_INT:T_INVALID; /* simplified base‑type */
-        case ADDRESS:   return T_INT_PTR;
-        case SIZEOF:    return T_INT;
-    }
-    return T_INVALID;
-}
