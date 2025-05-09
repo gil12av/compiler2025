@@ -54,21 +54,54 @@ int isPointer(Type t){
 }
 int isNumeric(Type t){ return t==T_INT||t==T_REAL; }
 
+int semCheckCondition(Type t){
+    return ( t == T_BOOL);
+}
+
 Type resultBinary(int op,Type a,Type b){
     switch(op){
         case '+': case '-': case '*': case '/':
-            if(isNumeric(a)&&isNumeric(b))
-                return (a==T_REAL||b==T_REAL)?T_REAL:T_INT;
+            if( isNumeric(a) && isNumeric(b) )
+                return ( a == T_REAL || b == T_REAL )?T_REAL:T_INT;
             break;
+        
         case DOUBLE_EQUAL: case NOT_EQUAL:
-            if(a==b) return T_BOOL;
-            if(isPointer(a)&&isPointer(b)) return T_BOOL;
+            if(a==b)                            return T_BOOL;
+            if(isPointer(a)&&isPointer(b))      return T_BOOL;
             break;
+
         case '<': case '>': case GREATER_EQUAL: case LESS_EQUAL:
-            if(isNumeric(a)&&isNumeric(b)) return T_BOOL;
+            if( isNumeric(a) && isNumeric(b) )  return T_BOOL;
             break;
+
         case AND: case OR:
-            if(a==T_BOOL && b==T_BOOL) return T_BOOL;
+            if( a == T_BOOL && b == T_BOOL )    return T_BOOL;
+            break;
+    }
+    return T_INVALID;
+}
+
+Type resultUnary(int op,Type a){
+    switch(op){
+        case NOT: 
+            if(a == T_BOOL)       return T_BOOL;
+            break;
+
+        case '|':
+            if(isNumeric(a))       return a;
+            if(a == T_STRING)      return T_INT;
+            break;
+
+        case '*': 
+            if(a == T_INT_PTR)     return T_INT;
+            if(a == T_REAL_PTR)    return T_REAL;
+            if(a == T_CHAR_PTR)    return T_CHAR;
+            break;
+
+        case '&':
+            if(a == T_INT)     return T_INT_PTR;
+            if(a == T_REAL)    return T_REAL_PTR;
+            if(a == T_CHAR)    return T_CHAR_PTR;
             break;
     }
     return T_INVALID;
