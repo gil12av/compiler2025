@@ -23,6 +23,28 @@ void semFinish(void){
         semanticError("_main_ must be void with no parameters");
 }
 
+
+int semCheckAssign(Type lhs, Type rhs) {
+    if(lhs == rhs) return 1;
+    if(isNumeric(lhs) && isNumeric(rhs)) return 1;
+    return 0;
+}
+
+Type semTypeOfLValue(node *n) {
+    return semTypeOfNode(n);
+}
+
+int semCheckReturn(Type ret) {
+    if(!currentFunction) return 0;
+    return(currentFunction->type == ret);
+}
+
+int semCheckCall(Symbol *f, node *args){
+    (void)f; (void)args;
+    return 1;
+}
+
+
 void semEnterFunction(Symbol* f){ currentFunction=f; pushScope(); }
 void semLeaveFunction(void){ popScope(); currentFunction=NULL; }
 
@@ -50,5 +72,9 @@ Type resultBinary(int op,Type a,Type b){
             break;
     }
     return T_INVALID;
+
+
+
 }
+
 
