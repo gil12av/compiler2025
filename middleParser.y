@@ -244,7 +244,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type = /*type of declears in this scope*/ ,
+                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -290,7 +290,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type =  /* Go to decleration */ , 
+                    .type =  T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -315,7 +315,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type = ,/* Go to decleration */ ,
+                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -336,7 +336,7 @@ literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
         | STRING_LITERAL    { $$ = mknode($1, NULL,NULL);  $$->type = T_STRING; }
         | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
         | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
-        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_PTR; }
+        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_INVALID; }
         ; 
  
 code_block: optional_var BEGIN_KEYWORD Comments inner_block Comments END_KEYWORD 
@@ -450,7 +450,7 @@ simple_statement: lvalue '=' experssion ';'  Comments
                         //-- symbol_table - Part2 : --//
                         Type lhs = semTypeOfLValue($1);
                         Type rhs = semTypeOfNode($3);
-                        if(!sumCheckAssign(lhs,rhs))
+                        if(!semCheckAssign(lhs,rhs))
                             semanticError("Type mismatch in assignment");
 
                         // make AST:    
@@ -464,7 +464,7 @@ simple_statement: lvalue '=' experssion ';'  Comments
 return_statement: RETURN_KEYWORD experssion ';' 
                     {
                          //-- symbol_table - Part2 : --//
-                         Type ret = semTypeOfNode($2);
+                         Type ret = semTypeOfNode($2); // check type of return 
                          if(!semCheckReturn(currentFunction,ret))
                             semanticError("Invalid return type");
 
