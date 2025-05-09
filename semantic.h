@@ -1,11 +1,11 @@
 #ifndef SEMANTICS_H
 #define SEMANTICS_H
 
-#include "y.tab.h"   /* FIX: מאפשר גישה ל‑UMINUS DEREF ...  */
+#include "y.tab.h"  
 #include "symbol_table.h"
 
 /* forward declaration for struct node (מוגדר ב‑parser.y) */
-struct node;              /* FIX */
+struct node;              
 typedef struct node node; /* נוח לקצר */
 
 void  semInit(void);
@@ -21,5 +21,10 @@ Type  resultBinary(int op,Type a,Type b);
 Type  resultUnary(int op,Type a);
 
 void  semanticError(const char *fmt,...);
+
+Type semTypeOfLValue(node *n);
+int semCheckAssign(Type lhs, Type rhs);
+int semCheckReturn(Type ret);
+int semCheckCall(Symbol *f, node *args);
 
 #endif
