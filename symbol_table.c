@@ -53,3 +53,4 @@ Symbol* insert(Symbol proto){
     currentScope->hash[h]=sym;
     return sym;
 }
+
