@@ -4,33 +4,34 @@ parser.y: note: rerun with option '-Wcounterexamples' to generate conflict count
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ lex scanner.l
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ gcc -o parser y.tab.c lex.yy.c semantic.c symbol_table.c -I. -lfl
 parser.y: In function ‘yyparse’:
-parser.y:247:64: error: expected expression before ‘,’ token
-  247 |                     .type = /*type of declears in this scope*/ ,
-      |                                                                ^
-parser.y:293:54: error: expected expression before ‘,’ token
-  293 |                     .type =  /* Go to decleration */ ,
-      |                                                      ^
-parser.y:318:29: error: expected expression before ‘,’ token
-  318 |                     .type = ,/* Go to decleration */ ,
-      |                             ^
-parser.y:339:106: error: ‘T_PTR’ undeclared (first use in this function); did you mean ‘INT_PTR’?
-  339 |         | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_PTR; }
-      |                                                                                                          ^    
-      |                                                                                                          INT_PTR
-parser.y:339:106: note: each undeclared identifier is reported only once for each function it appears in
-parser.y:451:36: warning: implicit declaration of function ‘semTypeOfLValue’; did you mean ‘semTypeOfNode’? [-Wimplicit-function-declaration]
-  451 |                         Type lhs = semTypeOfLValue($1);
-      |                                    ^~~~~~~~~~~~~~~
-      |                                    semTypeOfNode
-parser.y:453:29: warning: implicit declaration of function ‘sumCheckAssign’ [-Wimplicit-function-declaration]
-  453 |                         if(!sumCheckAssign(lhs,rhs))
-      |                             ^~~~~~~~~~~~~~
-parser.y:468:30: warning: implicit declaration of function ‘semCheckReturn’ [-Wimplicit-function-declaration]
-  468 |                          if(!semCheckReturn(currentFunction,ret))
-      |                              ^~~~~~~~~~~~~~
 parser.y:468:45: error: ‘currentFunction’ undeclared (first use in this function)
   468 |                          if(!semCheckReturn(currentFunction,ret))
       |                                             ^~~~~~~~~~~~~~~
-parser.y:485:29: warning: implicit declaration of function ‘semCheckCall’ [-Wimplicit-function-declaration]
-  485 |                         if(!semCheckCall(fn, NULL))
-      |                             ^~~~~~~~~~~~
+parser.y:468:45: note: each undeclared identifier is reported only once for each function it appears in
+parser.y:468:30: error: too many arguments to function ‘semCheckReturn’
+  468 |                          if(!semCheckReturn(currentFunction,ret))
+      |                              ^~~~~~~~~~~~~~
+In file included from parser.y:12:
+semantic.h:27:5: note: declared here
+   27 | int semCheckReturn(Type ret);
+      |     ^~~~~~~~~~~~~~
+parser.y:581:61: warning: passing argument 1 of ‘semTypeOfNode’ from incompatible pointer type [-Wincompatible-pointer-types]
+  581 |                         Type cond = semTypeOfNode($7);
+      |                                                   ~~~~      ^       
+      |                                                             |
+      |                                                             char *
+semantic.h:16:27: note: expected ‘node *’ {aka ‘struct node *’} but argument is of type ‘char *’
+   16 | Type  semTypeOfNode(node *n);   /* (optional) */
+      |                     ~~~~~~^
+parser.y:619:27: error: conflicting types for ‘cond’; have ‘node *’ {aka ‘struct node *’}
+  619 |                     node* cond = $7;
+      |                           ^~~~
+parser.y:609:26: note: previous definition of ‘cond’ with type ‘Type’
+  609 |                     Type cond = semTypeOfNode($7);
+      |                          ^~~~
+parser.y:900:29: error: expected expression before ‘Type’
+  900 |                             Type r = resultUnary('&', a);
+      |                             ^~~~
+parser.y:902:50: error: ‘r’ undeclared (first use in this function)
+  902 |                             $$->type = r;
+      |                                                  ^
