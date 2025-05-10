@@ -584,7 +584,7 @@ do_while_statement:  DO ':' optional_var code_block  WHILE  expression ';'
                         if ( cond != T_BOOL)
                             semanticError("DO-WHILE condition is not boolean");
 
-                        $$ = mknode("DO_WHILE", body, mknode($4, NULL, NULL));
+                        $$ = mknode("DO_WHILE", $4, $6);
                         $$->type = T_VOID;
                       }
                       ;
