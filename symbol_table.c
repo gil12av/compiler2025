@@ -54,3 +54,16 @@ Symbol* insert(Symbol proto){
     currentScope->hash[h]=sym;
     return sym;
 }
+
+void printScope(void){
+    if( !currentScope ){
+        printf("PrintScope: no scope to see here\n");
+        return;
+    }    
+    printf("------- currentScope -------\n");
+    for(int i = 0; i < HASH_SIZE; i++){
+        for(Symbol *s = currentScope->hash[i]; s; s = s->next){
+            printf(" name = %s, kind = %d, type =%d, line = %d\n", s-> name, s-> kind, s ->type, s ->line);
+        }
+    }
+}
