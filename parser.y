@@ -72,11 +72,7 @@ node* root = NULL;
 program: function_list  
         { 
             semInit();
-            
-            // optional only for debug:
-            printScope();
-
-
+           
             $$ = mknode("CODE", $1, NULL); 
             root = $$;
             semFinish();
@@ -117,6 +113,9 @@ note : the while loop containing the "functions" for us to control the tree
 function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
             {
                 //-- symbol_table - Part2 : --//
+               
+                semEnterFunction(lookup($2)); // we want to enter to the scope.
+
                 Symbol proto = { 
                     .name = $2,
                     .kind = K_FUNC, 
@@ -349,7 +348,6 @@ code_block: optional_var BEGIN_KEYWORD Comments inner_block Comments END_KEYWORD
             {   
                 /* SEMANTIC: OPEN NEW SCOPE*/
                 pushScope();
-                printScope();
                 $$ = mknode("BLOCK", $1, $3);
 
     
@@ -403,7 +401,7 @@ lvalue:   IDENTIFIER
 
                 /* Check for existing ====== VARIABLE ===== */
                 Symbol *s = lookup($1);
-                if(!s || s->kind !=K_VAR)
+                if(!s || (s->kind !=K_VAR && s->kind != K_PARAM) )
                     semanticError("Unknown variable %s", $1);
                 
                 /* Save type of value */
@@ -417,7 +415,7 @@ lvalue:   IDENTIFIER
                 
                 /* Check for existing ====== ARRAY ===== */
                 Symbol *s = lookup($1);
-                if(!s || s->kind !=K_VAR)
+                if(!s || (s->kind !=K_VAR && s->kind != K_PARAM) )
                     semanticError("Unknown array %s", $1);
                 
                 /* Save type of value */
@@ -811,7 +809,7 @@ simple_expression: '(' expression ')'                 { $$ = $2; }
                         {  
                              $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3);
                              Symbol *s = lookup($1); 
-                             if( !s || s->kind != K_VAR )
+                             if( !s || (s->kind != K_VAR && s->kind != K_PARAM) )
                                 semanticError("Unknown array %s", $1);
                              $$->type = s->type;
                         }
@@ -975,7 +973,7 @@ int main() {
     
     // this is for see the scope :
     semInit();
-    printScope();
+    //printScope();
 
     // continue: 
     int result = yyparse();
