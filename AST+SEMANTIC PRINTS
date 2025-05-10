@@ -1,0 +1,48 @@
+gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ ./parser < astExample.txt
+Starting to parse input ..... 
+                                   ------- currentScope -------
+ name = f, kind = 1, type =1, line = 1
+ name = x, kind = 1, type =0, line = 1
+ name = y, kind = 1, type =0, line = 1
+ name = z, kind = 1, type =0, line = 1
+                                                ------- currentScope -------
+ name = f, kind = 1, type =1, line = 1
+ name = x, kind = 1, type =0, line = 1
+ name = y, kind = 1, type =0, line = 1
+ name = z, kind = 1, type =0, line = 1
+------- currentScope -------
+ name = f, kind = 1, type =1, line = 1
+ name = x, kind = 1, type =0, line = 1
+ name = y, kind = 1, type =0, line = 1
+ name = z, kind = 1, type =0, line = 1
+     ------- currentScope -------
+ name = foo, kind = 2, type =8, line = 13
+
+YEAH! Parse Successful!
+Here is the AST tree:
+
+(CODE
+  (FUNC
+    (foo)
+    (PARS
+      (par1 INT x)
+      (par2 INT y
+        (par3 INT z
+          (par4 REAL f)
+        )
+      )
+    )
+    (RET NONE)
+    (BODY
+      (BLOCK)
+      (FUNC
+        (main_)
+        (PARS NONE)
+        (RET NONE)
+        (BODY
+          (BLOCK)
+        )
+      )
+    )
+  )
+)
