@@ -33,7 +33,7 @@ node* root = NULL;
     struct node* node;
 }
 
-/*the left , right is the key words are for the order of the experssion */
+/*the left , right is the key words are for the order of the expression */
 
 %left '+' '-'
 %left '*' '/'
@@ -54,13 +54,13 @@ node* root = NULL;
 %token <string> IDENTIFIER
 %nonassoc COMMENT
 
-%type <node> program function_list function return_value parameter_list parameter  Comments
+%type <node> program function_list function return_value parameter_list parameter Comments
 %type <node> type declaration_list declaration variable_list variable1
 %type <node> literal code_block inner_block optional_function_list optional_var
 %type <node> statement_list statement lvalue simple_statement return_statement
 %type <node> call_statement if_statement elif_list elif_blocks elif_block else_block
 %type <node> single_block_or_block while_statement do_while_statement for_statement
-%type <node> experssion simple_expression experssion_list pointer_experssion call_experssion
+%type <node> expression simple_expression expression_list pointer_expression call_expression
 
 
 
@@ -401,7 +401,7 @@ lvalue:   IDENTIFIER
                 $$->type = s->type;    
             }
 
-        | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
+        | IDENTIFIER '[' expression ']'  // for example of a[19] that makes us a problem
             { 
                 // AST: we want IDENTIFIER and ARRAY-INDEX
                 $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); 
@@ -445,7 +445,7 @@ lvalue:   IDENTIFIER
             } 
         ; 
 
-simple_statement: lvalue '=' experssion ';'  Comments  
+simple_statement: lvalue '=' expression ';'  Comments  
                     { 
                         //-- symbol_table - Part2 : --//
                         Type lhs = semTypeOfLValue($1);
@@ -461,11 +461,11 @@ simple_statement: lvalue '=' experssion ';'  Comments
                  | return_statement             { $$ = $1; }
                  ;
 
-return_statement: RETURN_KEYWORD experssion ';' 
+return_statement: RETURN_KEYWORD expression ';' 
                     {
                          //-- symbol_table - Part2 : --//
                          Type ret = semTypeOfNode($2); // check type of return 
-                         if(!semCheckReturn(currentFunction,ret))
+                         if(!semCheckReturn(ret))
                             semanticError("Invalid return type");
 
                          // AST build :    
@@ -490,7 +490,7 @@ call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
                         $$->type = fn->type;
                      }
 
-                 | CALL IDENTIFIER '(' experssion_list ')' ';'    // Procedure with parameter
+                 | CALL IDENTIFIER '(' expression_list ')' ';'    // Procedure with parameter
                      { 
                         //-- symbol_table - Part2 : --//
                         Symbol *fn = lookup($2);
@@ -506,7 +506,7 @@ call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
                      }
                  ;
 
-if_statement: IF experssion ':' single_block_or_block elif_list else_block 
+if_statement: IF expression ':' single_block_or_block elif_list else_block 
             {
                 //-- symbol_table - Part2 : --//
                 /* ==== we want to check if the condition is Boolean: === */
@@ -541,7 +541,7 @@ elif_blocks:  elif_block                 { $$ = $1; }   // AST: if theres only o
               // AST: if have more than 1 - create node to each block
             ;
 
-elif_block: ELIF experssion ':' single_block_or_block  
+elif_block: ELIF expression ':' single_block_or_block  
             { 
                 /* semantic: Check ELIF bool */
                 Type cond = semTypeOfNode($2);
@@ -561,7 +561,7 @@ single_block_or_block:  simple_statement   { $$ = $1; }
                        | code_block        { $$ = $1; } 
                        ;
 
-while_statement: WHILE experssion ':' single_block_or_block  
+while_statement: WHILE expression ':' single_block_or_block  
                 { 
                     /* Semantic: WHILE cond must be boolean*/
                     Type cond = semTypeOfNode($2);
@@ -575,30 +575,22 @@ while_statement: WHILE experssion ':' single_block_or_block
                  ;
 
 // AST: we build DO ( from optional_var and statment_list ) and then connected it to DO_WHILE !
-do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWORD WHILE  experssion ';' 
-                     {
-                        /* Semantic: DO-WHILE cond must be boolean*/
-                        Type cond = semTypeOfNode($7);
+// for shimi: i changed this rule from BEGIN_KEYWORD statement_LIST END_KEYWORD ---> to : code_block
+
+do_while_statement:  DO ':' optional_var code_block  WHILE  expression ';' 
+                      {
+                      /* Semantic: DO-WHILE cond must be boolean*/
+                        Type cond = semTypeOfNode($6);
                         if ( cond != T_BOOL)
                             semanticError("DO-WHILE condition is not boolean");
 
-                        // AST + Type void 
-                        node* body = $3;
-                        if (body != NULL) {
-                            node* temp = body;
-                            while ( temp->right != NULL)
-                                temp = temp->right;
-                            temp->right = $5;
-                            body = $3;
-                        } else {
-                         body = $5;
-                        } 
-                        $$ = mknode("DO_WHILE", body, mknode($7, NULL, NULL));
+                        $$ = mknode("DO_WHILE", body, mknode($4, NULL, NULL));
                         $$->type = T_VOID;
-                     }
-                    ;
+                      }
+                      ;
 
-for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block 
+
+for_statement: FOR '(' IDENTIFIER '=' expression ';' expression ';' IDENTIFIER '=' expression ')' ':' single_block_or_block 
                 {
                     /* Semantic: INIT and UPDATE are assigment for exp*/
                     Type lhs1 = semTypeOfLValue(mknode($3, NULL,NULL));
@@ -606,8 +598,8 @@ for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '
                     if( lhs1 != rhs1 && !(isNumeric(lhs1)) && !(isNumeric(rhs1)) )
                         semanticError("there is Type mismatch in for-init");
 
-                    Type cond = semTypeOfNode($7);
-                    if( cond != T_BOOL )
+                    Type condType = semTypeOfNode($7);
+                    if( condType != T_BOOL )
                         semanticError("FOR condition is not boolean");    
 
                     Type lhs2 = semTypeOfLValue(mknode($9, NULL,NULL));
@@ -616,16 +608,16 @@ for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '
                         semanticError("there is Type mismatch in for-update");
 
                     node* init = mknode("=", mknode($3, NULL, NULL), $5); 
-                    node* cond = $7;
+                    node* condNode = $7;
                     node* update = mknode("=", mknode($9, NULL, NULL), $11);
-                    node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", cond, update));
+                    node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", condNode, update));
                     $$ = mknode("FOR",control, $14);
                     $$->type = T_VOID;
                 }
               ;
 
-experssion: simple_expression               { $$ = $1; } 
-           | experssion '+' experssion      
+expression: simple_expression               { $$ = $1; } 
+           | expression '+' expression      
                     { 
                         // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -638,7 +630,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
 
-           | experssion '-' experssion      
+           | expression '-' expression      
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -651,7 +643,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     } 
 
-           | experssion '*' experssion     
+           | expression '*' expression     
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -664,7 +656,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     } 
 
-           | experssion '/' experssion     
+           | expression '/' expression     
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -677,7 +669,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     } 
 
-           | experssion '<' experssion     
+           | expression '<' expression     
                         { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -689,7 +681,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$ = mknode("<", $1, $3); 
                         $$->type = r;
                     } 
-           | experssion '>' experssion     
+           | expression '>' expression     
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -702,7 +694,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     } 
 
-           | '|' experssion '|'             
+           | '|' expression '|'             
                     // For size of variable //
                     { 
                         Type a = semTypeOfNode($2);
@@ -713,7 +705,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;    
                     } 
 
-           | experssion DOUBLE_EQUAL experssion     
+           | expression DOUBLE_EQUAL expression     
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -727,7 +719,7 @@ experssion: simple_expression               { $$ = $1; }
                     } 
 
 
-           | experssion NOT_EQUAL experssion         
+           | expression NOT_EQUAL expression         
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -740,7 +732,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     } 
 
-           | experssion GREATER_EQUAL experssion     
+           | expression GREATER_EQUAL expression     
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -753,7 +745,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
 
-           | experssion LESS_EQUAL experssion       
+           | expression LESS_EQUAL expression       
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -766,7 +758,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
 
-           | experssion AND experssion               
+           | expression AND expression               
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -779,7 +771,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
 
-           | experssion OR experssion               
+           | expression OR expression               
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
@@ -792,7 +784,7 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
 
-           | NOT experssion                          
+           | NOT expression                          
                     { 
                         Type a = semTypeOfNode($2);
                         Type r = resultUnary(NOT,a);
@@ -802,11 +794,11 @@ experssion: simple_expression               { $$ = $1; }
                         $$->type = r;
                     }
                   
-           | call_experssion                         { $$ = $1; }
+           | call_expression                         { $$ = $1; }
           ;
 
-simple_expression: '(' experssion ')'                 { $$ = $2; }
-                    | IDENTIFIER '[' experssion ']'    
+simple_expression: '(' expression ')'                 { $$ = $2; }
+                    | IDENTIFIER '[' expression ']'    
                         {  
                              $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3);
                              Symbol *s = lookup($1); 
@@ -815,7 +807,7 @@ simple_expression: '(' experssion ')'                 { $$ = $2; }
                              $$->type = s->type;
                         }
 
-                    | pointer_experssion               { $$ = $1; }
+                    | pointer_expression               { $$ = $1; }
 
                     | literal                          { $$ = $1; }
 
@@ -838,7 +830,7 @@ simple_expression: '(' experssion ')'                 { $$ = $2; }
                         }
 
 
-                    | IDENTIFIER '(' experssion_list ')'    
+                    | IDENTIFIER '(' expression_list ')'    
                         { 
                             Symbol *s = lookup($1);
                             if( !s || s->kind != K_FUNC )
@@ -848,12 +840,12 @@ simple_expression: '(' experssion ')'                 { $$ = $2; }
                         }
                     ;
 
-experssion_list:  experssion     
+expression_list:  expression     
                 { 
                     $$ = $1; 
                 }
 
-                | experssion_list ',' experssion      
+                | expression_list ',' expression      
                 { 
                    node* temp = $1;
                    while(temp->right != NULL)
@@ -864,7 +856,7 @@ experssion_list:  experssion
                 ;
 
 /* For option to call func with assign, for example: x = call foo(a,b) */
-call_experssion:   CALL IDENTIFIER '('  ')'                 
+call_expression:   CALL IDENTIFIER '('  ')'                 
                     { 
                         Symbol *s = lookup($2);
                         if( !s || s->kind != K_FUNC )
@@ -873,7 +865,7 @@ call_experssion:   CALL IDENTIFIER '('  ')'
                         $$->type = s->type;
                     }
 
-                 | CALL IDENTIFIER '(' experssion_list ')' 
+                 | CALL IDENTIFIER '(' expression_list ')' 
                       { 
                         Symbol *s = lookup($2);
                         if( !s || s->kind != K_FUNC )
@@ -883,23 +875,23 @@ call_experssion:   CALL IDENTIFIER '('  ')'
                     }                     
                  ;
 
-pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
+pointer_expression:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
                         { 
-                            Type a = semTypeOfNode($2);
+                            /* Type a = semTypeOfNode($2);
                             if(!isPointer(a))
                                 semanticError("Cannot dereference non-pointer");
-                            Type r = resultUnary('*', a);
+                            Type r = resultUnary('*', a); */
                             $$ = mknode("DEREF", $2, NULL); 
-                            $$->type = r;
+                            /*$$->type = r; */
                         }
 
                     | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
                         { 
-                            Type a = semTypeOfNode($2);
-                            if( !(a != T_INVALID) ) /* every accept type */
-                            Type r = resultUnary('&', a);
+                            /* Type a = semTypeOfNode($2);
+                            if(!(a != T_INVALID)) /* every accept type */
+                            /* Type r = resultUnary('&', a); */
                             $$ = mknode("ADDRESS", $2, NULL); 
-                            $$->type = r;     
+                            /* $$->type = r; */    
                         }
                     ; 
 
