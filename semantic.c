@@ -6,6 +6,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+typedef struct node {
+    char *token;
+    struct node *left;
+    struct node *right;
+    Type type;
+} node;
+
 
 static Symbol *currentFunction=NULL;
 
@@ -26,11 +33,11 @@ void semInit(void)
 
 void semFinish(void)
 {
-    Symbol *mainSym=lookup("_main_");
+    Symbol *mainSym=lookup("main_");
     if(!mainSym || mainSym->kind!=K_FUNC)
-        semanticError("missing _main_ function");
+        semanticError("missing main_ function");
     if(mainSym->paramCount!=0 || mainSym->type!=T_VOID)
-        semanticError("_main_ must be void with no parameters");
+        semanticError("main_ must be void with no parameters");
 }
 
 
