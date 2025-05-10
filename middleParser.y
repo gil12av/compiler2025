@@ -11,6 +11,7 @@ extern char *yytext;
 #include "symbol_table.h"
 #include "semantic.h"
 
+
 typedef struct node {
     char *token;
     struct node *left;
