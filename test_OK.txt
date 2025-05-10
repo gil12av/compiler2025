@@ -1,4 +1,4 @@
-def foo(par1 int:x; par2 int:y; par3 int:z; par4 real:f):
+def _main_(par1 int:x; par2 int:y; par3 int:z; par4 real:f):
 begin
     if x > y:
     begin
