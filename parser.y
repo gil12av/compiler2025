@@ -11,10 +11,12 @@ extern char *yytext;
 #include "symbol_table.h"
 #include "semantic.h"
 
+
 typedef struct node {
     char *token;
     struct node *left;
     struct node *right;
+    Type type;
 } node;
 
 node* mknode(char *token, node *left, node *right);
@@ -32,9 +34,8 @@ node* root = NULL;
     struct node* node;
 }
 
-/*the left , right is the key words are for the order of the experssion */
+/*the left , right is the key words are for the order of the expression */
 
-/*
 %left '+' '-'
 %left '*' '/'
 %left '<' '>' DOUBLE_EQUAL NOT_EQUAL GREATER_EQUAL LESS_EQUAL
@@ -42,7 +43,7 @@ node* root = NULL;
 %left OR
 %left AND
 %right NOT
-*/
+
 
 %token <string> BOOL CHAR INT REAL STRING COMMENT
 %token <string> INT_PTR CHAR_PTR REAL_PTR
@@ -54,22 +55,28 @@ node* root = NULL;
 %token <string> IDENTIFIER
 %nonassoc COMMENT
 
-%type <node> program function_list function return_value parameter_list parameter  Comments
+%type <node> program function_list function return_value parameter_list parameter Comments
 %type <node> type declaration_list declaration variable_list variable1
 %type <node> literal code_block inner_block optional_function_list optional_var
 %type <node> statement_list statement lvalue simple_statement return_statement
 %type <node> call_statement if_statement elif_list elif_blocks elif_block else_block
 %type <node> single_block_or_block while_statement do_while_statement for_statement
-%type <node> experssion simple_expression experssion_list pointer_experssion call_experssion
+%type <node> expression simple_expression expression_list pointer_expression call_expression
 
 
 
 %start program
 
 %%
-
+/* =============== PROGRAM =================*/
 program: function_list  
         { 
+            semInit();
+            
+            // optional only for debug:
+            printScope();
+
+
             $$ = mknode("CODE", $1, NULL); 
             root = $$;
             semFinish();
@@ -80,6 +87,8 @@ program: function_list
                 |
             function_list
 */
+
+/* -------------- FUNCTION_LIST ------------------ */
 function_list:  function                    { $$ = $1; }
               | function_list function      
                 { 
@@ -104,9 +113,25 @@ option 2 :
 
 note : the while loop containing the "functions" for us to control the tree
 */
+/* -------------- FUNCTION ------------------ */
 function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
             {
-                
+                //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $2,
+                    .kind = K_FUNC, 
+                    .type = $7->type,
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    } ;
+
+                if(!insert(proto)) 
+                    semanticError("Function %s redecleared", $2);
+                semEnterFunction(lookup($2));                
+
+                // AST NODE-build : //
                 node* nameNode = mknode($2, NULL, NULL);    // Function name
                 node* parsNode = $4;                    // Pararmeter
                 node* retNode = $7;                     // Return_value
@@ -115,15 +140,24 @@ function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block
                 node* header = mknode("", nameNode, parsNode);
                 node* parts = mknode("", retNode, bodyNode);
                 $$ = mknode("FUNC",header, parts);
+
+                // Exit Scope: (Semantic)
+                semLeaveFunction();
             } 
             ;
 
-return_value :  /*empty*/       { $$ = mknode("RET NONE", NULL, NULL); }         
+return_value :  /*empty*/       
+                    { 
+                        $$ = mknode("RET NONE", NULL, NULL); 
+                        $$->type = T_VOID; // where no return-Value
+                    }
+
                | RETURNS type  
                 { 
                     char returnValue[256];
                     sprintf(returnValue, "RET %s", $2->token);
                     $$ = mknode(returnValue, NULL, NULL);
+                    $$->type = $2->type; // keep the return type !
                 }    
                ;
 
@@ -146,18 +180,32 @@ parameter: PAR type ':' IDENTIFIER
                 char buffer[256];
                 sprintf(buffer, "%s %s %s", $1, $2->token, $4);
                 $$ = mknode(buffer, NULL, NULL);
+
+                //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $4,
+                    .kind = K_PARAM, 
+                    .type = $2->type,
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    } ;
+
+                if(!insert(proto)) 
+                    semanticError("Parameter %s redecleared", $4);
            }
            ;
 
 // about ast: each of types are return from scanner to PAR or return_value.
-type:  INT          { $$ = mknode("INT", NULL,NULL); }
-     | REAL         { $$ = mknode("REAL", NULL,NULL); }
-     | CHAR         { $$ = mknode("CHAR", NULL,NULL); }
-     | STRING       { $$ = mknode("STRING", NULL,NULL); }
-     | BOOL         { $$ = mknode("BOOL", NULL,NULL); }
-     | INT_PTR      { $$ = mknode("INT_PTR", NULL,NULL); }
-     | CHAR_PTR     { $$ = mknode("CHAR_PTR", NULL,NULL); }
-     | REAL_PTR     { $$ = mknode("REAL_PTR", NULL,NULL); }
+type:  INT          { $$ = mknode("INT", NULL,NULL);      $$->type = T_INT; }
+     | REAL         { $$ = mknode("REAL", NULL,NULL);     $$->type = T_REAL; }
+     | CHAR         { $$ = mknode("CHAR", NULL,NULL);     $$->type = T_CHAR; }
+     | STRING       { $$ = mknode("STRING", NULL,NULL);   $$->type = T_STRING; }
+     | BOOL         { $$ = mknode("BOOL", NULL,NULL);     $$->type = T_BOOL; }
+     | INT_PTR      { $$ = mknode("INT_PTR", NULL,NULL);  $$->type = T_INT_PTR; }
+     | CHAR_PTR     { $$ = mknode("CHAR_PTR", NULL,NULL); $$->type = T_CHAR_PTR; }
+     | REAL_PTR     { $$ = mknode("REAL_PTR", NULL,NULL); $$->type = T_REAL_PTR; }
      ;
 Comments: /*empty*/ { $$ = NULL; } 
         | COMMENT { $$ = NULL; };
@@ -177,6 +225,7 @@ declaration: TYPE type ':' variable_list ';'  Comments
               {
                  node* typeNode = mknode($2->token, NULL, NULL); 
                  $$ = mknode("DECLERATION", typeNode, mknode($4->token,NULL,NULL));
+                 $$->type = $2->type;
               }
              ;
 
@@ -194,42 +243,120 @@ variable_list:  variable1     { $$ = $1;}
               ;
 
 variable1:  IDENTIFIER       // regular variable
-            { $$ = mknode($1, NULL, NULL); }   // AST: Create node with variable name.
+            { 
+                $$ = mknode($1, NULL, NULL);  // AST: Create node with variable name.
+
+                //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variables %s redecleared", $1);
+            
+            }  
 
           | IDENTIFIER ':' literal    // initialized var
             { 
                 node* idNode = mknode($1, NULL, NULL);
-                $$ = mknode("=", idNode ,$3);
-            }    // AST: create node "="
+                $$ = mknode("=", idNode ,$3); // AST: create node "="
+
+                //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type = $3->type,
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", $1);
+
+            }    
+
+            /* ==== Variable1 : ARRAY without init! === */
 
           | IDENTIFIER '[' INT_LITERAL ']'     // array ( example: a[10] )
             { 
                 char buffer[256];
                 sprintf(buffer, "%s[%s]", $1, $3);
                 $$ = mknode(buffer, NULL, NULL); 
-            }  // AST: node (name to size)
+              // AST: node (name to size)
+
+               //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type =  T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", $1);
+
+                $$->type = proto.type;    
+            }
+
+            /* ==== Variable1 : ARRAY with init! === */
 
           | IDENTIFIER '[' INT_LITERAL ']' ':' STRING_LITERAL   // array with value or init
             { 
                char buffer[256];
                 sprintf(buffer, "%s[%s] = %s", $1, $3, $6);
                 $$ = mknode(buffer, NULL, NULL); 
+            
+            //-- symbol_table - Part2 : --//
+                Symbol proto = { 
+                    .name = $1,
+                    .kind = K_VAR, 
+                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    };
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", $1);
+
+                $$->type = proto.type;   
             }
           ;
 
-literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL); }
-        | REAL_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | CHAR_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | HEX_LITERAL       { $$ = mknode($1, NULL,NULL); }
-        | STRING_LITERAL    { $$ = mknode($1, NULL,NULL); }
-        | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL); }
-        | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL); }
-        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL); }
+literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
+        | REAL_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_REAL; }
+        | CHAR_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_CHAR; }
+        | HEX_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
+        | STRING_LITERAL    { $$ = mknode($1, NULL,NULL);  $$->type = T_STRING; }
+        | TRUE_LITERAL      { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
+        | FALSE_LITERAL     { $$ = mknode($1, NULL,NULL);  $$->type = T_BOOL; }
+        | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_INVALID; }
         ; 
  
 code_block: optional_var BEGIN_KEYWORD Comments inner_block Comments END_KEYWORD 
             {   
+                /* SEMANTIC: OPEN NEW SCOPE*/
+                pushScope();
+                printScope();
                 $$ = mknode("BLOCK", $1, $3);
+
+    
+                /* SEMANTIC: CLOSE THE SCOPE*/
+                popScope();
+                printScope();
+
             }
             ;
 
@@ -271,31 +398,133 @@ statement:    simple_statement      { $$ = $1; }
 
 /* This is the left side of the assignment... */
 lvalue:   IDENTIFIER 
-            { $$ = mknode($1, NULL, NULL); }
-        | IDENTIFIER '[' experssion ']'  // for example of a[19] that makes us a problem
-            { $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); } // AST: we want IDENTIFIER and ARRAY-INDEX
+            { 
+                $$ = mknode($1, NULL, NULL); 
+
+                /* Check for existing ====== VARIABLE ===== */
+                Symbol *s = lookup($1);
+                if(!s || s->kind !=K_VAR)
+                    semanticError("Unknown variable %s", $1);
+                
+                /* Save type of value */
+                $$->type = s->type;    
+            }
+
+        | IDENTIFIER '[' expression ']'  // for example of a[19] that makes us a problem
+            { 
+                // AST: we want IDENTIFIER and ARRAY-INDEX
+                $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); 
+                
+                /* Check for existing ====== ARRAY ===== */
+                Symbol *s = lookup($1);
+                if(!s || s->kind !=K_VAR)
+                    semanticError("Unknown array %s", $1);
+                
+                /* Save type of value */
+                $$->type = s->type; 
+            } 
+        
+        
         | '*' IDENTIFIER               // For pointers, For example: *x
-            { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
+            { 
+                // AST: pointer approach
+                $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); 
+                   /* Check for existing ====== POINTER ===== */
+                Symbol *s = lookup($2);
+                if(!s || !isPointer(s->type) )
+                    semanticError("%s IS NOT A POINTER", $2);
+                
+                /* Save type of value */
+                $$->type = semTypeOfNode($$); 
+            } 
+        
+        
         | '&' IDENTIFIER               // For pointers, For example: *x
-            { $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); } // AST: pointer approach
+            { 
+                // AST: pointer approach
+                $$ = mknode("POINTER_ACCESS", mknode($2, NULL, NULL), NULL); 
+
+                     /* Check for existing ====== VARIABLE ===== */
+                Symbol *s = lookup($2);
+                if(!s)
+                    semanticError("Unknown variable %s", $2);
+                
+                /* Save type of value */
+                $$->type = semTypeOfNode($$); 
+            } 
         ; 
 
-simple_statement: lvalue '=' experssion ';'  Comments  { $$ = mknode("=", $1, $3); }
+simple_statement: lvalue '=' expression ';'  Comments  
+                    { 
+                        //-- symbol_table - Part2 : --//
+                        Type lhs = semTypeOfLValue($1);
+                        Type rhs = semTypeOfNode($3);
+                        if(!semCheckAssign(lhs,rhs))
+                            semanticError("Type mismatch in assignment");
+
+                        // make AST:    
+                        $$ = mknode("=", $1, $3); 
+                        $$->type = lhs;
+                    }
+
                  | return_statement             { $$ = $1; }
                  ;
 
-return_statement: RETURN_KEYWORD experssion ';' { $$ = mknode("RET", $2, NULL); }
+return_statement: RETURN_KEYWORD expression ';' 
+                    {
+                         //-- symbol_table - Part2 : --//
+                         Type ret = semTypeOfNode($2); // check type of return 
+                         if(!semCheckReturn(ret))
+                            semanticError("Invalid return type");
+
+                         // AST build :    
+                         $$ = mknode("RET", $2, NULL); 
+                         $$->type = ret; 
+                    }
                  ;
 
 /* For procedure only, for example: call foo(), for function is in line 300 */
 call_statement :   CALL IDENTIFIER '('  ')' ';' // Procedure without parameter
-                     { $$ = mknode("CALL", mknode($2, NULL, NULL), NULL); }
-                 | CALL IDENTIFIER '(' experssion_list ')' ';'    // Procedure with parameter
-                     { $$ = mknode("CALL", mknode($2, NULL, NULL), $4); }
+                     {
+                        //-- symbol_table - Part2 : --//
+                        Symbol *fn = lookup($2);
+                        if(!fn || fn->kind != K_FUNC)
+                            semanticError("%s is not a function", $2);
+
+                        if(!semCheckCall(fn, NULL))
+                            semanticError("Wrong args for %s", $2);
+
+                        //AST build :        
+                        $$ = mknode("CALL", mknode($2, NULL, NULL), NULL); 
+                        $$->type = fn->type;
+                     }
+
+                 | CALL IDENTIFIER '(' expression_list ')' ';'    // Procedure with parameter
+                     { 
+                        //-- symbol_table - Part2 : --//
+                        Symbol *fn = lookup($2);
+                        if(!fn || fn->kind != K_FUNC)
+                            semanticError("%s is not a function", $2);
+
+                        if(!semCheckCall(fn, $4))
+                            semanticError("Wrong args for %s", $2);
+
+                        //AST build : 
+                        $$ = mknode("CALL", mknode($2, NULL, NULL), $4); 
+                        $$->type = fn->type;
+                     }
                  ;
 
-if_statement: IF experssion ':' single_block_or_block elif_list else_block 
+if_statement: IF expression ':' single_block_or_block elif_list else_block 
             {
+                //-- symbol_table - Part2 : --//
+                /* ==== we want to check if the condition is Boolean: === */
+
+                Type cond = semTypeOfNode($2);
+                if(!semCheckCondition(cond))
+                    semanticError("IF condition is not boolean");
+
+                // AST build node IF/IF-ELSE/ELSE-IF    
                 node* if_node = mknode("IF", $2, $4);
                 if ($5 != NULL)
                     if_node = mknode("IF-ELSE", if_node, $5);
@@ -321,7 +550,16 @@ elif_blocks:  elif_block                 { $$ = $1; }   // AST: if theres only o
               // AST: if have more than 1 - create node to each block
             ;
 
-elif_block: ELIF experssion ':' single_block_or_block  { $$ = mknode("ELIF", $2, $4); } 
+elif_block: ELIF expression ':' single_block_or_block  
+            { 
+                /* semantic: Check ELIF bool */
+                Type cond = semTypeOfNode($2);
+                if(!semCheckCondition(cond))
+                    semanticError("ELIF condition is not boolean");
+
+                //Build ELIF node(part-1):
+                $$ = mknode("ELIF", $2, $4); 
+            } 
             ;
 
 else_block:  /* empty */         { $$ = NULL; }     /*{ $$ = mknode("NO_ELSE", NULL, NULL); } */
@@ -332,65 +570,291 @@ single_block_or_block:  simple_statement   { $$ = $1; }
                        | code_block        { $$ = $1; } 
                        ;
 
-while_statement: WHILE experssion ':' single_block_or_block  { $$ = mknode("WHILE", $2, $4); }
+while_statement: WHILE expression ':' single_block_or_block  
+                { 
+                    /* Semantic: WHILE cond must be boolean*/
+                    Type cond = semTypeOfNode($2);
+                    if ( cond != T_BOOL)
+                        semanticError("WHILE condition is not boolean");
+
+                    // AST + Type void    
+                    $$ = mknode("WHILE", $2, $4); 
+                    $$->type = T_VOID;
+                }
                  ;
 
 // AST: we build DO ( from optional_var and statment_list ) and then connected it to DO_WHILE !
-do_while_statement:  DO ':' optional_var BEGIN_KEYWORD statement_list END_KEYWORD WHILE  experssion ';' 
-                     {
-                        node* body = $3;
-                        if (body != NULL) {
-                            node* temp = body;
-                            while ( temp->right != NULL)
-                                temp = temp->right;
-                            temp->right = $5;
-                            body = $3;
-                        } else {
-                         body = $5;
-                        } 
-                        $$ = mknode("DO_WHILE", body, mknode($7, NULL, NULL));
-                     }
-                    ;
+// for shimi: i changed this rule from BEGIN_KEYWORD statement_LIST END_KEYWORD ---> to : code_block
 
-for_statement: FOR '(' IDENTIFIER '=' experssion ';' experssion ';' IDENTIFIER '=' experssion ')' ':' single_block_or_block 
+do_while_statement:  DO ':' optional_var code_block  WHILE  expression ';' 
+                      {
+                      /* Semantic: DO-WHILE cond must be boolean*/
+                        Type cond = semTypeOfNode($6);
+                        if ( cond != T_BOOL)
+                            semanticError("DO-WHILE condition is not boolean");
+
+                        $$ = mknode("DO_WHILE", $4, $6);
+                        $$->type = T_VOID;
+                      }
+                      ;
+
+
+for_statement: FOR '(' IDENTIFIER '=' expression ';' expression ';' IDENTIFIER '=' expression ')' ':' single_block_or_block 
                 {
+                    /* Semantic: INIT and UPDATE are assigment for exp*/
+                    Type lhs1 = semTypeOfLValue(mknode($3, NULL,NULL));
+                    Type rhs1 = semTypeOfNode($5);
+                    if( lhs1 != rhs1 && !(isNumeric(lhs1)) && !(isNumeric(rhs1)) )
+                        semanticError("there is Type mismatch in for-init");
+
+                    Type condType = semTypeOfNode($7);
+                    if( condType != T_BOOL )
+                        semanticError("FOR condition is not boolean");    
+
+                    Type lhs2 = semTypeOfLValue(mknode($9, NULL,NULL));
+                    Type rhs2 = semTypeOfNode($11);
+                    if( lhs2 != rhs2 && !(isNumeric(lhs2)) && !(isNumeric(rhs2)) )
+                        semanticError("there is Type mismatch in for-update");
+
                     node* init = mknode("=", mknode($3, NULL, NULL), $5); 
-                    node* cond = $7;
+                    node* condNode = $7;
                     node* update = mknode("=", mknode($9, NULL, NULL), $11);
-                    node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", cond, update));
+                    node* control = mknode("FOR_CTRL", init, mknode("COND_UPDATE", condNode, update));
                     $$ = mknode("FOR",control, $14);
+                    $$->type = T_VOID;
                 }
               ;
 
-experssion: simple_expression               { $$ = $1; } 
-           | experssion '+' experssion      { $$ = mknode("+", $1, $3); } 
-           | experssion '-' experssion      { $$ = mknode("-", $1, $3); } 
-           | experssion '*' experssion      { $$ = mknode("*", $1, $3); } 
-           | experssion '/' experssion      { $$ = mknode("/", $1, $3); } 
-           | experssion '<' experssion      { $$ = mknode("<", $1, $3); } 
-           | experssion '>' experssion      { $$ = mknode(">", $1, $3); } 
-           | '|' experssion '|'             { $$ = mknode("SIZEOF", $2, NULL); } // For size of variable //
-           | experssion DOUBLE_EQUAL experssion      { $$ = mknode("==", $1, $3); }
-           | experssion NOT_EQUAL experssion         { $$ = mknode("!=", $1, $3); }
-           | experssion GREATER_EQUAL experssion     { $$ = mknode(">=", $1, $3); }
-           | experssion LESS_EQUAL experssion        { $$ = mknode("<=", $1, $3); }
-           | experssion AND experssion               { $$ = mknode("AND", $1, $3); }
-           | experssion OR experssion                { $$ = mknode("OR", $1, $3); }
-           | NOT experssion                          { $$ = mknode("NOT", $2, NULL); }
-           | call_experssion                         { $$ = $1; }
+expression: simple_expression               { $$ = $1; } 
+           | expression '+' expression      
+                    { 
+                        // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('+', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for +");
+
+                        // NODE for + ;    
+                        $$ = mknode("+", $1, $3); 
+                        $$->type = r;
+                    }
+
+           | expression '-' expression      
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('-', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for -");
+
+                        // NODE for - ;    
+                        $$ = mknode("-", $1, $3); 
+                        $$->type = r;
+                    } 
+
+           | expression '*' expression     
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('*', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for *");
+
+                        // NODE for * ;    
+                        $$ = mknode("*", $1, $3); 
+                        $$->type = r;
+                    } 
+
+           | expression '/' expression     
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('-', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for /");
+
+                        // NODE for / ;    
+                        $$ = mknode("/", $1, $3); 
+                        $$->type = r;
+                    } 
+
+           | expression '<' expression     
+                        { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('<', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for <");
+
+                        // NODE for < ;    
+                        $$ = mknode("<", $1, $3); 
+                        $$->type = r;
+                    } 
+           | expression '>' expression     
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary('>', a, b);
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for >");
+
+                        // NODE for > ;    
+                        $$ = mknode(">", $1, $3); 
+                        $$->type = r;
+                    } 
+
+           | '|' expression '|'             
+                    // For size of variable //
+                    { 
+                        Type a = semTypeOfNode($2);
+                        Type r = resultUnary('|',a);
+                        if( r == T_INVALID)
+                            semanticError("Invalid type for |expr| ");
+                        $$ = mknode("SIZEOF", $2, NULL); 
+                        $$->type = r;    
+                    } 
+
+           | expression DOUBLE_EQUAL expression     
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(DOUBLE_EQUAL, a, b);    // we need to Test if is possible to put the operator '==' itself 
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for ==");
+
+                        // NODE for == ;    
+                        $$ = mknode("==", $1, $3); 
+                        $$->type = r;
+                    } 
+
+
+           | expression NOT_EQUAL expression         
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(NOT_EQUAL, a, b);    // we need to Test if is possible to put the operator '!=' itself 
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for !=");
+
+                        // NODE for != ;    
+                        $$ = mknode("!=", $1, $3); 
+                        $$->type = r;
+                    } 
+
+           | expression GREATER_EQUAL expression     
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(GREATER_EQUAL, a, b);    // we need to Test if is possible to put the operator '>=' itself 
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for >=");
+
+                        // NODE for >= ;    
+                        $$ = mknode(">=", $1, $3); 
+                        $$->type = r;
+                    }
+
+           | expression LESS_EQUAL expression       
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(LESS_EQUAL, a, b);    // we need to Test if is possible to put the operator '<=' itself 
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for <=");
+
+                        // NODE for <= ;    
+                        $$ = mknode("<=", $1, $3); 
+                        $$->type = r;
+                    }
+
+           | expression AND expression               
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(AND, a, b); 
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for AND");
+
+                        // NODE for AND ;    
+                        $$ = mknode("AND", $1, $3); 
+                        $$->type = r;
+                    }
+
+           | expression OR expression               
+                    { 
+                       // SEMANTIC: Check types of both expression 
+                        Type a = semTypeOfNode($1), b = semTypeOfNode($3);
+                        Type r = resultBinary(OR, a, b);   
+                        if ( r == T_INVALID )
+                            semanticError("Invalid types for OR");
+
+                        // NODE for OR ;    
+                        $$ = mknode("OR", $1, $3); 
+                        $$->type = r;
+                    }
+
+           | NOT expression                          
+                    { 
+                        Type a = semTypeOfNode($2);
+                        Type r = resultUnary(NOT,a);
+                        if( r == T_INVALID)
+                            semanticError("Invalid type for NOT");
+                        $$ = mknode("NOT", $2, NULL); 
+                        $$->type = r;
+                    }
+                  
+           | call_expression                         { $$ = $1; }
           ;
 
-simple_expression: '(' experssion ')'                  { $$ = $2; }
-                    | IDENTIFIER '[' experssion ']'    { $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3); }
-                    | pointer_experssion               { $$ = $1; }
+simple_expression: '(' expression ')'                 { $$ = $2; }
+                    | IDENTIFIER '[' expression ']'    
+                        {  
+                             $$ = mknode("ARRAY_ACCESS", mknode($1, NULL, NULL), $3);
+                             Symbol *s = lookup($1); 
+                             if( !s || s->kind != K_VAR )
+                                semanticError("Unknown array %s", $1);
+                             $$->type = s->type;
+                        }
+
+                    | pointer_expression               { $$ = $1; }
+
                     | literal                          { $$ = $1; }
-                    | IDENTIFIER                       { $$ = mknode($1, NULL, NULL); }
-                    | IDENTIFIER '(' ')'                    { $$ = mknode("CALL", mknode($1, NULL, NULL), NULL); }
-                    | IDENTIFIER '(' experssion_list ')'    { $$ = mknode("CALL", mknode($1, NULL, NULL), $3); }
+
+                    | IDENTIFIER                       
+                        { 
+                            $$ = mknode($1, NULL, NULL); 
+                            Symbol *s = lookup($1); 
+                             if( !s )
+                                semanticError("Unknown Variable %s", $1);
+                             $$->type = s->type;
+                        }    
+
+                    | IDENTIFIER '(' ')'                    
+                        { 
+                            Symbol *s = lookup($1);
+                            if( !s || s->kind != K_FUNC )
+                                semanticError("%s is not a function", $1);
+                            $$ = mknode("CALL", mknode($1, NULL, NULL), NULL); 
+                            $$->type = s->type;
+                        }
+
+
+                    | IDENTIFIER '(' expression_list ')'    
+                        { 
+                            Symbol *s = lookup($1);
+                            if( !s || s->kind != K_FUNC )
+                                semanticError("%s is not a function", $1);
+                            $$ = mknode("CALL", mknode($1, NULL, NULL), $3); 
+                            $$->type = s->type;
+                        }
                     ;
 
-experssion_list:  experssion                          { $$ = $1; }
-                | experssion_list ',' experssion      
+expression_list:  expression     
+                { 
+                    $$ = $1; 
+                }
+
+                | expression_list ',' expression      
                 { 
                    node* temp = $1;
                    while(temp->right != NULL)
@@ -401,15 +865,43 @@ experssion_list:  experssion                          { $$ = $1; }
                 ;
 
 /* For option to call func with assign, for example: x = call foo(a,b) */
-call_experssion:   CALL IDENTIFIER '('  ')'                 { $$ = mknode("CALL", mknode($2, NULL,NULL), NULL);}
-                 | CALL IDENTIFIER '(' experssion_list ')' { $$ = mknode("CALL", mknode($2, NULL, NULL), $4); }
+call_expression:   CALL IDENTIFIER '('  ')'                 
+                    { 
+                        Symbol *s = lookup($2);
+                        if( !s || s->kind != K_FUNC )
+                                semanticError("%s is not a function", $2);
+                        $$ = mknode("CALL", mknode($2, NULL,NULL), NULL);
+                        $$->type = s->type;
+                    }
+
+                 | CALL IDENTIFIER '(' expression_list ')' 
+                      { 
+                        Symbol *s = lookup($2);
+                        if( !s || s->kind != K_FUNC )
+                                semanticError("%s is not a function", $2);
+                        $$ = mknode("CALL", mknode($2, NULL, NULL), $4); 
+                        $$->type = s->type;
+                    }                     
                  ;
 
-pointer_experssion:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
-                        { $$ = mknode("DEREF", $2, NULL); }
-                    | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
-                        { $$ = mknode("ADDRESS", $2, NULL); }
+pointer_expression:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
+                        { 
+                            /* Type a = semTypeOfNode($2);
+                            if(!isPointer(a))
+                                semanticError("Cannot dereference non-pointer");
+                            Type r = resultUnary('*', a); */
+                            $$ = mknode("DEREF", $2, NULL); 
+                            /*$$->type = r; */
+                        }
 
+                    | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
+                        { 
+                            /* Type a = semTypeOfNode($2);
+                            if(!(a != T_INVALID)) /* every accept type */
+                            /* Type r = resultUnary('&', a); */
+                            $$ = mknode("ADDRESS", $2, NULL); 
+                            /* $$->type = r; */    
+                        }
                     ; 
 
 %%
@@ -480,6 +972,12 @@ void printtree(node* tree, int level) {
 
 int main() {
     printf("Starting to parse input ..... \n");
+    
+    // this is for see the scope :
+    semInit();
+    printScope();
+
+    // continue: 
     int result = yyparse();
 
     if (result == 0) {
