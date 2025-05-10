@@ -19,3 +19,4 @@ semantics.o: semantic.c semantic.h symbol_table.h parser.y
 
 clean:
 	rm -f lex.yy.c y.tab.* *.o parser
+
