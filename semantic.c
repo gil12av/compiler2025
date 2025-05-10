@@ -1,7 +1,11 @@
 #include "semantic.h"
+#include "symbol_table.h"
+#include "y.tab.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+
 
 static Symbol *currentFunction=NULL;
 
@@ -14,8 +18,14 @@ void semanticError(const char *fmt,...){
     exit(1);
 }
 
-void semInit(void){ pushScope(); }
-void semFinish(void){
+void semInit(void)
+{ 
+    pushScope(); 
+}
+
+
+void semFinish(void)
+{
     Symbol *mainSym=lookup("_main_");
     if(!mainSym || mainSym->kind!=K_FUNC)
         semanticError("missing _main_ function");
@@ -24,17 +34,20 @@ void semFinish(void){
 }
 
 
-int semCheckAssign(Type lhs, Type rhs) {
+int semCheckAssign(Type lhs, Type rhs) 
+{
     if(lhs == rhs) return 1;
     if(isNumeric(lhs) && isNumeric(rhs)) return 1;
     return 0;
 }
 
-Type semTypeOfLValue(node *n) {
+Type semTypeOfLValue(node *n) 
+{
     return semTypeOfNode(n);
 }
 
-int semCheckReturn(Type ret) {
+int semCheckReturn(Type ret) 
+{
     if(!currentFunction) return 0;
     return(currentFunction->type == ret);
 }
@@ -45,20 +58,45 @@ int semCheckCall(Symbol *f, node *args){
 }
 
 
-void semEnterFunction(Symbol* f){ currentFunction=f; pushScope(); }
-void semLeaveFunction(void){ popScope(); currentFunction=NULL; }
+void semEnterFunction(Symbol* f)
+{ 
+    currentFunction=f; 
+    pushScope(); 
+}
+
+void semLeaveFunction(void)
+{
+    popScope();
+    currentFunction=NULL; 
+}
 
 /* helpers */
-int isPointer(Type t){
+
+Type semTypeOfNode(node* n)
+{
+    if(!n)
+        return T_INVALID;
+        return n->type;
+}
+
+
+int isPointer(Type t)
+{
     return t==T_INT_PTR||t==T_REAL_PTR||t==T_CHAR_PTR;
 }
-int isNumeric(Type t){ return t==T_INT||t==T_REAL; }
 
-int semCheckCondition(Type t){
+int isNumeric(Type t)
+{
+     return t==T_INT||t==T_REAL; 
+}
+
+int semCheckCondition(Type t)
+{
     return ( t == T_BOOL);
 }
 
-Type resultBinary(int op,Type a,Type b){
+Type resultBinary(int op,Type a,Type b)
+{
     switch(op){
         case '+': case '-': case '*': case '/':
             if( isNumeric(a) && isNumeric(b) )
