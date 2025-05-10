@@ -1,4 +1,4 @@
-def _main_(par1 int:x; par2 int:y; par3 int:z; par4 real:f):
+def foo(par1 int:x; par2 int:y; par3 int:z; par4 real:f):
 begin
     if x > y:
     begin
@@ -12,7 +12,7 @@ begin
     end
 end
 
-def goo(): returns char
+def main_():
 begin
-    return ‘a’;
+    
 end
