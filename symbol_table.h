@@ -2,6 +2,7 @@
 #define SYMBOL_TABLE_H
 #include <stddef.h>
 
+
 #define HASH_SIZE 211
 
 typedef enum {T_INT,T_REAL,T_CHAR,T_BOOL,T_STRING,
