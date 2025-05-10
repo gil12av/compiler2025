@@ -3,16 +3,12 @@ parser.y: warning: 3 shift/reduce conflicts [-Wconflicts-sr]
 parser.y: note: rerun with option '-Wcounterexamples' to generate conflict counterexamples
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ lex scanner.l
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ gcc -o parser y.tab.c lex.yy.c semantic.c symbol_table.c -I. -lfl
-parser.y: In function ‘yyparse’:
-parser.y:587:59: error: ‘body’ undeclared (first use in this function)
-  587 |                         $$ = mknode("DO_WHILE", body, mknode($4, NULL, NULL));
-      |                                                           ^~~~
-parser.y:587:59: note: each undeclared identifier is reported only once for each function it appears in
-parser.y:587:82: warning: passing argument 1 of ‘mknode’ from incompatible pointer type [-Wincompatible-pointer-types]
-  587 |                         $$ = mknode("DO_WHILE", body, mknode($4, NULL, NULL));
-      |                                                                        ~~~~~~~   ^     
-      |                                                                                  |
-      |                                                                                  struct node *
-parser.y:21:20: note: expected ‘char *’ but argument is of type ‘struct node *’
-   21 | node* mknode(char *token, node *left, node *right);
-      |              ~~~~~~^~~~~
+/usr/bin/ld: /tmp/ccFFb2J2.o: in function `yyparse':
+y.tab.c:(.text+0x17be): undefined reference to `semTypeOfNode'
+/usr/bin/ld: y.tab.c:(.text+0x185a): undefined reference to `semTypeOfNode'
+/usr/bin/ld: y.tab.c:(.text+0x1894): undefined reference to `semTypeOfNode'
+/usr/bin/ld: y.tab.c:(.text+0x193d): undefined reference to `semTypeOfNode'
+/usr/bin/ld: y.tab.c:(.text+0x1bb5): undefined reference to `semTypeOfNode'
+/usr/bin/ld: /tmp/ccFFb2J2.o:y.tab.c:(.text+0x1d5c): more undefined references to `semTypeOfNode' follow
+collect2: error: ld returned 1 exit status
+gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ ^C
