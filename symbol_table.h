@@ -37,5 +37,6 @@ void    popScope(void);
 Symbol* lookup(const char *name);        /* search current+parents */
 Symbol* lookupCurrent(const char *name); /* search only current    */
 Symbol* insert(Symbol proto);            /* return NULL if dup     */
+void printScope(void);                   /* print current scope    */
 
 #endif
