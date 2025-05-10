@@ -1,14 +1,11 @@
+gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ make clean
+rm -f parser parser.o lex.yy.o semantic.o symbol_table.o y.tab.c y.tab.h lex.yy.c
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ yacc -d -v parser.y
 parser.y: warning: 3 shift/reduce conflicts [-Wconflicts-sr]
 parser.y: note: rerun with option '-Wcounterexamples' to generate conflict counterexamples
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ lex scanner.l
 gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ gcc -o parser y.tab.c lex.yy.c semantic.c symbol_table.c -I. -lfl
-/usr/bin/ld: /tmp/ccFFb2J2.o: in function `yyparse':
-y.tab.c:(.text+0x17be): undefined reference to `semTypeOfNode'
-/usr/bin/ld: y.tab.c:(.text+0x185a): undefined reference to `semTypeOfNode'
-/usr/bin/ld: y.tab.c:(.text+0x1894): undefined reference to `semTypeOfNode'
-/usr/bin/ld: y.tab.c:(.text+0x193d): undefined reference to `semTypeOfNode'
-/usr/bin/ld: y.tab.c:(.text+0x1bb5): undefined reference to `semTypeOfNode'
-/usr/bin/ld: /tmp/ccFFb2J2.o:y.tab.c:(.text+0x1d5c): more undefined references to `semTypeOfNode' follow
-collect2: error: ld returned 1 exit status
-gil@gil-VirtualBox:~/Desktop/compilation course/compiler 2025/part2$ ^C
+semantic.c: In function ‘semTypeOfNode’:
+semantic.c:79:17: error: invalid use of incomplete typedef ‘node’
+   79 |         return n->type;
+      |                 ^~
