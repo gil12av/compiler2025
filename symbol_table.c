@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
+
 static Scope *currentScope=NULL;
 
 /* hash func */
@@ -53,4 +54,3 @@ Symbol* insert(Symbol proto){
     currentScope->hash[h]=sym;
     return sym;
 }
-
