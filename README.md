@@ -12,6 +12,8 @@ step 4:
 
 
 / ---------------------------- /
+
+
 For part 2:
 
 step 1: 
@@ -25,7 +27,10 @@ gcc -o parser y.tab.c lex.yy.c semantic.c symbol_table.c -I. -lfl ---> compile a
 
 step 4:
 ./parser < test_OK.txt
+
+
 / ---------------------------- /
+
 **if you want do debug:**
 1. bison -d -v parser.y
 
