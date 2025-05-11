@@ -1,0 +1,24 @@
+def foo(): returns int
+var 
+#-> This is a comment over multiple lines <-#
+type char:c;  #-> This is a comment over multiple lines <-#
+type int:x,z;
+type int*:y;
+#-> This is a comment over multiple lines <-#
+begin
+x = 5; #-> This is a comment over multiple lines <-#
+y = &x; 
+x = 6; 
+z = *y; 
+y = null; 
+z = **y;
+
+&x = y;
+
+end
+
+def main_():
+begin
+    
+end
+
