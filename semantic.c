@@ -83,7 +83,7 @@ Type semTypeOfNode(node* n)
 {
     if(!n)
         return T_INVALID;
-        return n->type;
+    return n->type;
 }
 
 
