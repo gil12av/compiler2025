@@ -70,13 +70,12 @@ node* root = NULL;
 
 %%
 /* =============== PROGRAM =================*/
-program: function_list  
+program: { semInit(); } function_list  
         { 
-            semInit();
-           
-            $$ = mknode("CODE", $1, NULL); 
+            $$ = mknode("CODE", $2, NULL); 
             root = $$;
             semFinish();
+            printScopes();
         } 
         ;
 /*
@@ -192,6 +191,7 @@ parameter: PAR type ':' IDENTIFIER
 
                 if(!insert(proto)) 
                     semanticError("Parameter %s redecleared", $4);
+                 
            }
            ;
 
@@ -344,8 +344,7 @@ code_block: optional_var BEGIN_KEYWORD {pushScope(); }Comments inner_block Comme
     
                 /* SEMANTIC: CLOSE THE SCOPE*/
                 //popScope();
-                printScope();
-
+                
             }
             ;
 
