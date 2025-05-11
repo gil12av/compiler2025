@@ -240,27 +240,19 @@ variable_list:  variable1     { $$ = $1;}
               }
               ;
 
-variable1:  IDENTIFIER       // regular variable
+variable1:  IDENTIFIER       // regular variable - אין פה השמה - אין צורך לבצע הכנסה לטבלת סימנים.
             { 
-                $$ = mknode($1, NULL, NULL);  // AST: Create node with variable name.
-
                 //-- symbol_table - Part2 : --//
-                Symbol proto = { 
-                    .name = $1,
-                    .kind = K_VAR, 
-                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
-                    .isDefined = 1,
-                    .params = NULL,
-                    .paramCount = 0, 
-                    .line = yylineno
-                    };
-
-                if(!insert(proto)) 
-                    semanticError("Variables %s redecleared", $1);
+                Symbol *s = lookup($1);
+                if(!s)
+                    semanticError("Unknown Variable %s", $1);
             
+                 $$ = mknode($1, NULL, NULL);  // AST: Create node with variable name.
+                 $$->type = s->type;
+
             }  
 
-          | IDENTIFIER ':' literal    // initialized var
+          | IDENTIFIER ':' literal    // initialized var - איתחול ולכן נכניס לטבלת הסימנים מתשנה מטיפוס חדש
             { 
                 node* idNode = mknode($1, NULL, NULL);
                 $$ = mknode("=", idNode ,$3); // AST: create node "="
@@ -294,7 +286,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type =  T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
+                    .type =  T_STRING, 
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -319,7 +311,7 @@ variable1:  IDENTIFIER       // regular variable
                 Symbol proto = { 
                     .name = $1,
                     .kind = K_VAR, 
-                    .type = T_INVALID, /* === TODO : bro we need to fix it later to the type of Array ====*/
+                    .type = T_STRING, 
                     .isDefined = 1,
                     .params = NULL,
                     .paramCount = 0, 
@@ -343,15 +335,15 @@ literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
         | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_INVALID; }
         ; 
  
-code_block: optional_var BEGIN_KEYWORD Comments inner_block Comments END_KEYWORD 
+code_block: optional_var BEGIN_KEYWORD {pushScope(); }Comments inner_block Comments {popScope();} END_KEYWORD 
             {   
                 /* SEMANTIC: OPEN NEW SCOPE*/
-                pushScope();
-                $$ = mknode("BLOCK", $1, $3);
+                //pushScope();
+                $$ = mknode("BLOCK", $1, $4);
 
     
                 /* SEMANTIC: CLOSE THE SCOPE*/
-                popScope();
+                //popScope();
                 printScope();
 
             }
@@ -528,6 +520,7 @@ if_statement: IF expression ':' single_block_or_block elif_list else_block
                 if ($6 != NULL)
                     if_node = mknode("IF_ELIF_ELSE", if_node, $6);
                 $$ = if_node;
+                $$->type = T_VOID;
             }
             ;
 
@@ -666,7 +659,7 @@ expression: simple_expression               { $$ = $1; }
                     { 
                        // SEMANTIC: Check types of both expression 
                         Type a = semTypeOfNode($1), b = semTypeOfNode($3);
-                        Type r = resultBinary('-', a, b);
+                        Type r = resultBinary('/', a, b);
                         if ( r == T_INVALID )
                             semanticError("Invalid types for /");
 
@@ -810,7 +803,7 @@ simple_expression: '(' expression ')'                 { $$ = $2; }
                              Symbol *s = lookup($1); 
                              if( !s || (s->kind != K_VAR && s->kind != K_PARAM) )
                                 semanticError("Unknown array %s", $1);
-                             $$->type = s->type;
+                             $$->type = T_CHAR;
                         }
 
                     | pointer_expression               { $$ = $1; }
@@ -883,21 +876,24 @@ call_expression:   CALL IDENTIFIER '('  ')'
 
 pointer_expression:   '*' simple_expression  // we change IDENTIFIER to simple_expression to support : *y[5]
                         { 
-                            /* Type a = semTypeOfNode($2);
+                            Type a = semTypeOfNode($2);
                             if(!isPointer(a))
                                 semanticError("Cannot dereference non-pointer");
-                            Type r = resultUnary('*', a); */
+                            
+                            Type r = resultUnary('*', a); 
                             $$ = mknode("DEREF", $2, NULL); 
-                            /*$$->type = r; */
+                            $$->type = r;
                         }
 
                     | '&' simple_expression  // we change IDENTIFIER to simple_expression to support : &y[5]
                         { 
-                            /* Type a = semTypeOfNode($2);
-                            if(!(a != T_INVALID)) /* every accept type */
-                            /* Type r = resultUnary('&', a); */
+                            Type a = semTypeOfNode($2);
+                            if(a == T_INVALID)  /* every accept type */
+                                semanticError("Cannot take address of this expression");
+
+                            Type r = resultUnary('&', a);
                             $$ = mknode("ADDRESS", $2, NULL); 
-                            /* $$->type = r; */    
+                            $$->type = r; 
                         }
                     ; 
 
