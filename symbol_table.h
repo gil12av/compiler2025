@@ -23,7 +23,7 @@ typedef struct Symbol {
     ParamInfo *params;
     int    paramCount;
     int    line;
-    struct Symbol *next; /* לקישור ב‑bucket */
+    struct Symbol *next; 
 } Symbol;
 
 typedef struct Scope {
