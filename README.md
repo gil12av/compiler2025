@@ -12,7 +12,20 @@ step 4:
 
 
 / ---------------------------- /
+For part 2:
 
+step 1: 
+yacc -d parser.y  --->  to update parser
+
+step 2:
+lex scanner.l ---> to update scanner
+
+step 3:
+gcc -o parser y.tab.c lex.yy.c semantic.c symbol_table.c -I. -lfl ---> compile all files
+
+step 4:
+./parser < test_OK.txt
+/ ---------------------------- /
 **if you want do debug:**
 1. bison -d -v parser.y
 
