@@ -69,6 +69,7 @@ void semEnterFunction(Symbol* f)
 { 
     currentFunction=f; 
     pushScope(); 
+    printScopes();
 }
 
 void semLeaveFunction(void)
