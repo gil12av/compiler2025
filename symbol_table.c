@@ -55,15 +55,34 @@ Symbol* insert(Symbol proto){
     return sym;
 }
 
-void printScope(void){
-    if( !currentScope ){
-        printf("PrintScope: no scope to see here\n");
+// ================================================================= //
+// ======================= FOR PRINTING ONLY ======================= //
+// ================================================================= //
+
+static void printSingleScope(Scope *s, int indent)
+{
+    if(!s)
         return;
-    }    
-    printf("------- currentScope -------\n");
-    for(int i = 0; i < HASH_SIZE; i++){
-        for(Symbol *s = currentScope->hash[i]; s; s = s->next){
-            printf(" name = %s, kind = %d, type =%d, line = %d\n", s-> name, s-> kind, s ->type, s ->line);
+
+    for(int i = 0; i < HASH_SIZE; ++i) {
+        for(Symbol *sym = s->hash[i]; sym; sym = sym->next) {
+            printf("%*s name = %-8s, kind = %d, type = %d, line = %d\n",
+            indent, " ",
+            sym->name,
+            sym->kind,
+            sym->type,
+            sym->line );
         }
     }
+}
+
+void printScopes(void)
+{      
+    puts("\n========== SYMBOL_TABLE: ===========");
+    int depth = 0;
+    for(Scope *s= currentScope; s; s = s->parent, ++depth)
+        printSingleScope(s, depth* 4);
+    puts("====================================== \n");       
+   
+
 }
