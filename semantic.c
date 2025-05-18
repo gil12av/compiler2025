@@ -41,10 +41,18 @@ void semFinish(void)
 }
 
 
+/*  פונקציה לבדיקה של השמה בין טיפוסי המשתנים .*/
 int semCheckAssign(Type lhs, Type rhs) 
 {
-    if(lhs == rhs) return 1;
-    if(isNumeric(lhs) && isNumeric(rhs)) return 1;
+    if(lhs == rhs) 
+        return 1;
+    
+    if(isNumeric(lhs) && isNumeric(rhs)) // INT + REAL
+        return 1;
+    
+    if(lhs == T_STRING || rhs == T_STRING) // STRING
+        return 0;    
+    
     return 0;
 }
 
@@ -60,7 +68,28 @@ int semCheckReturn(Type ret)
 }
 
 int semCheckCall(Symbol *f, node *args){
-    (void)f; (void)args;
+    if(f->kind != K_FUNC)
+        semanticError("%s is not a function", f->name);
+
+    int i = 0;
+    node *arg = args;
+    while (arg)
+    {
+        if (i >= f->paramCount)
+            semanticError("Too many arguments in call to %s", f->name);
+        Type expcted = f->params[i].type;
+        Type actual = semTypeOfNode(arg);
+
+        if(!semCheckAssign(expcted, actual))
+            semanticError("argument %d type mismatch in call to %s", i+1, f->name);
+
+        i++;
+        arg = arg->right;           
+    }
+
+    if( i < f->paramCount)
+        semanticError("theres few arguments in call to %s", f->name);
+
     return 1;
 }
 
@@ -109,10 +138,12 @@ Type resultBinary(int op,Type a,Type b)
         case '+': case '-': case '*': case '/':
             if( isNumeric(a) && isNumeric(b) )
                 return ( a == T_REAL || b == T_REAL )?T_REAL:T_INT;
+            if((a == T_CHAR_PTR && b == T_INT) || (b == T_CHAR_PTR && a == T_INT))
+                return T_CHAR_PTR;
             break;
         
         case DOUBLE_EQUAL: case NOT_EQUAL:
-            if(a==b)                            return T_BOOL;
+            if(a == b)                          return T_BOOL;
             if(isPointer(a)&&isPointer(b))      return T_BOOL;
             break;
 
@@ -151,8 +182,6 @@ Type resultUnary(int op,Type a){
             break;
     }
     return T_INVALID;
-
-
 
 }
 
