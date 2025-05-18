@@ -28,7 +28,8 @@ int semCheckAssign(Type lhs, Type rhs);
 int semCheckReturn(Type ret);
 int semCheckCall(Symbol *f, node *args);
 
-// Check bool type //
+// Check bool type :
 int semCheckCondition(Type t);
+
 
 #endif
