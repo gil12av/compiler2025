@@ -149,6 +149,7 @@ function: DEF IDENTIFIER '('
                 $$ = mknode("FUNC",header, parts);
 
                 // Exit Scope: (Semantic)
+
                 semLeaveFunction();
                 pendingFunc = NULL;
              }
@@ -203,6 +204,7 @@ parameter: PAR type ':' IDENTIFIER
                 if(!insert(proto)) 
                     semanticError("Parameter %s redecleared", $4);
                 printf("Hello i'm at parameter grammer.... ");
+                
                 if(currentFunction) {
                     Symbol *f = currentFunction;
                     f->params = realloc(f->params, sizeof(ParamInfo) * (f->paramCount + 1));
@@ -212,6 +214,7 @@ parameter: PAR type ':' IDENTIFIER
                     f->params[f->paramCount].type = $2->type;
                     f->params[f->paramCount].name = strdup($4);
                     f->paramCount++ ;
+                    
                 }    
                  
            }
