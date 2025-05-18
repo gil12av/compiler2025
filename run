@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Find this shell script's directory - DO NOT DELETE
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Compile the lex and yacc files - Change if needed
+
+lex *scanner.l
+yacc -d *parser.y
+cc lex.yy.c y.tab.c symbol_table.c semantic.c -o compiler  -lfl
+
+./compiler < input.txt
+
+
