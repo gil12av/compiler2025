@@ -24,7 +24,8 @@ void printtree(node* tree, int level);
 
 // global root this root node is the "start" node .
 node* root = NULL;
-
+static Symbol *pendingFunc;
+extern Symbol *currentFunction;
 %}
 
 /*the union tell yacc about the types */
@@ -110,29 +111,38 @@ option 2 :
 note : the while loop containing the "functions" for us to control the tree
 */
 /* -------------- FUNCTION ------------------ */
-function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block 
+function: DEF IDENTIFIER '('
             {
                 //-- symbol_table - Part2 : --//
-               
-                Symbol proto = { 
+                   Symbol proto = { 
                     .name = $2,
                     .kind = K_FUNC, 
-                    .type = $7->type,
-                    .isDefined = 1,
+                    .type = T_INVALID,
+                    .isDefined = 0,
                     .params = NULL,
                     .paramCount = 0, 
                     .line = yylineno
                     } ;
 
-                if(!insert(proto)) 
-                    semanticError("Function %s redecleared", $2);
-                semEnterFunction(lookup($2));   // we want to enter to the scope.             
-
+                pendingFunc = insert(proto);
+                if(!pendingFunc) 
+                   semanticError("Function %s redecleared", $2);
+                
+                semEnterFunction(pendingFunc);   // we want to enter to the scope.   
+            }
+                
+            parameter_list ')' ':' return_value 
+                { 
+                    pendingFunc->type = $8->type;
+                    pendingFunc->isDefined = 1;
+                }
+             code_block    
+             {
                 // AST NODE-build : //
                 node* nameNode = mknode($2, NULL, NULL);    // Function name
-                node* parsNode = $4;                    // Pararmeter
-                node* retNode = $7;                     // Return_value
-                node* bodyNode = mknode("BODY", $8, NULL);  // Code_block 
+                node* parsNode = $5;                    // Pararmeter
+                node* retNode = $8;                     // Return_value
+                node* bodyNode = mknode("BODY", $10, NULL);  // Code_block 
 
                 node* header = mknode("", nameNode, parsNode);
                 node* parts = mknode("", retNode, bodyNode);
@@ -140,8 +150,9 @@ function: DEF IDENTIFIER '(' parameter_list ')' ':' return_value code_block
 
                 // Exit Scope: (Semantic)
                 semLeaveFunction();
-            } 
-            ;
+                pendingFunc = NULL;
+             }
+             ;
 
 return_value :  /*empty*/       
                     { 
@@ -191,6 +202,17 @@ parameter: PAR type ':' IDENTIFIER
 
                 if(!insert(proto)) 
                     semanticError("Parameter %s redecleared", $4);
+                printf("Hello i'm at parameter grammer.... ");
+                if(currentFunction) {
+                    Symbol *f = currentFunction;
+                    f->params = realloc(f->params, sizeof(ParamInfo) * (f->paramCount + 1));
+                    if(!f->params)
+                        semanticError("Memory allocation failed for function parameters");
+
+                    f->params[f->paramCount].type = $2->type;
+                    f->params[f->paramCount].name = strdup($4);
+                    f->paramCount++ ;
+                }    
                  
            }
            ;
@@ -224,6 +246,27 @@ declaration: TYPE type ':' variable_list ';'  Comments
                  node* typeNode = mknode($2->token, NULL, NULL); 
                  $$ = mknode("DECLERATION", typeNode, mknode($4->token,NULL,NULL));
                  $$->type = $2->type;
+
+                 Type declerationType = $2->type;
+                 node *var = $4;
+
+                 while(var)
+                 {
+                    Symbol proto = { 
+                    .name = var->token,
+                    .kind = K_VAR, 
+                    .type = declerationType,
+                    .isDefined = 1,
+                    .params = NULL,
+                    .paramCount = 0, 
+                    .line = yylineno
+                    } ;
+
+                if(!insert(proto)) 
+                    semanticError("Variable %s redecleared", var->token);
+                 
+                var = var->right; 
+                 }
               }
              ;
 
@@ -242,20 +285,14 @@ variable_list:  variable1     { $$ = $1;}
 
 variable1:  IDENTIFIER       // regular variable - אין פה השמה - אין צורך לבצע הכנסה לטבלת סימנים.
             { 
-                //-- symbol_table - Part2 : --//
-                Symbol *s = lookup($1);
-                if(!s)
-                    semanticError("Unknown Variable %s", $1);
-            
                  $$ = mknode($1, NULL, NULL);  // AST: Create node with variable name.
-                 $$->type = s->type;
-
             }  
 
           | IDENTIFIER ':' literal    // initialized var - איתחול ולכן נכניס לטבלת הסימנים מתשנה מטיפוס חדש
             { 
                 node* idNode = mknode($1, NULL, NULL);
                 $$ = mknode("=", idNode ,$3); // AST: create node "="
+                $$->type = $3->type;
 
                 //-- symbol_table - Part2 : --//
                 Symbol proto = { 
@@ -335,16 +372,14 @@ literal:  INT_LITERAL       { $$ = mknode($1, NULL,NULL);  $$->type = T_INT; }
         | NULL_KEYWORD      { $$ = mknode($1, NULL,NULL);  $$->type = T_INVALID; }
         ; 
  
-code_block: optional_var BEGIN_KEYWORD {pushScope(); }Comments inner_block Comments {popScope();} END_KEYWORD 
+code_block: { pushScope(); } optional_var BEGIN_KEYWORD Comments inner_block Comments {popScope();} END_KEYWORD 
             {   
                 /* SEMANTIC: OPEN NEW SCOPE*/
                 //pushScope();
-                $$ = mknode("BLOCK", $1, $4);
+                $$ = mknode("BLOCK", $2, $5);
 
-    
                 /* SEMANTIC: CLOSE THE SCOPE*/
                 //popScope();
-                
             }
             ;
 
@@ -407,7 +442,7 @@ lvalue:   IDENTIFIER
                 Symbol *s = lookup($1);
                 if(!s || (s->kind !=K_VAR && s->kind != K_PARAM) )
                     semanticError("Unknown array %s", $1);
-                
+           
                 /* Save type of value */
                 $$->type = s->type; 
             } 
@@ -438,7 +473,7 @@ lvalue:   IDENTIFIER
                     semanticError("Unknown variable %s", $2);
                 
                 /* Save type of value */
-                $$->type = semTypeOfNode($$); 
+                $$->type= resultUnary('&', s->type);
             } 
         ; 
 
@@ -593,7 +628,7 @@ for_statement: FOR '(' IDENTIFIER '=' expression ';' expression ';' IDENTIFIER '
                     /* Semantic: INIT and UPDATE are assigment for exp*/
                     Type lhs1 = semTypeOfLValue(mknode($3, NULL,NULL));
                     Type rhs1 = semTypeOfNode($5);
-                    if( lhs1 != rhs1 && !(isNumeric(lhs1)) && !(isNumeric(rhs1)) )
+                    if(!semCheckAssign(lhs1, rhs1))
                         semanticError("there is Type mismatch in for-init");
 
                     Type condType = semTypeOfNode($7);
