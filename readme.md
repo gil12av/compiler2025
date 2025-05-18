@@ -6,5 +6,4 @@ cc lex.yy.c y.tab.c symbol_table.c semantic.c -o compiler  -lfl
 
 ./compiler < input.txt
 
-גיל אברהם : 318180213
-שמעון ברוך 315385955
+גיל ושימי 
