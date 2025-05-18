@@ -10,6 +10,10 @@ typedef enum {T_INT,T_REAL,T_CHAR,T_BOOL,T_STRING,
 
 typedef enum {K_VAR,K_PARAM,K_FUNC} Kind;
 
+const char* typeToStr(Type t);
+
+const char* kindToStr(Kind k);
+
 typedef struct ParamInfo {
     Type type;
     char *name;
