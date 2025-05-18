@@ -64,7 +64,7 @@ TRUE 	 { return TRUE_LITERAL; }
 FALSE  { return FALSE_LITERAL; }
 
 "\""[^"]*"\""                           { yylval.string = strdup(yytext); return STRING_LITERAL; }
-\'[.]\'	                                { yylval.string = strdup(yytext); return CHAR_LITERAL; }
+\'([^\\\n]|(\\.))\'	                    { yylval.string = strdup(yytext); return CHAR_LITERAL; }
 [1-9][0-9]*                             { yylval.string = strdup(yytext); return INT_LITERAL; }
 0                                       { yylval.string = strdup(yytext); return INT_LITERAL; }
 [-+]?[0-9]*\.[0-9]*([eE]?[-+]?[0-9]+)?  { yylval.string = strdup(yytext); return REAL_LITERAL; }
