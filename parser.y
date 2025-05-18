@@ -71,12 +71,13 @@ extern Symbol *currentFunction;
 
 %%
 /* =============== PROGRAM =================*/
-program:function_list  
+program: { semInit(); }
+         function_list  
         { 
-            $$ = mknode("CODE", $1, NULL); 
+            $$ = mknode("CODE", $2, NULL); 
             root = $$;
             semFinish();
-            
+            printScopes();
         } 
         ;
 /*
@@ -149,6 +150,7 @@ function: DEF IDENTIFIER '('
                 $$ = mknode("FUNC",header, parts);
 
                 // Exit Scope: (Semantic)
+
                 semLeaveFunction();
                 pendingFunc = NULL;
              }
@@ -202,7 +204,7 @@ parameter: PAR type ':' IDENTIFIER
 
                 if(!insert(proto)) 
                     semanticError("Parameter %s redecleared", $4);
-                //printf("Hello i'm at parameter grammer.... ");
+                
                 if(currentFunction) {
                     Symbol *f = currentFunction;
                     f->params = realloc(f->params, sizeof(ParamInfo) * (f->paramCount + 1));
@@ -212,6 +214,7 @@ parameter: PAR type ':' IDENTIFIER
                     f->params[f->paramCount].type = $2->type;
                     f->params[f->paramCount].name = strdup($4);
                     f->paramCount++ ;
+                    
                 }    
                  
            }
@@ -443,8 +446,10 @@ lvalue:   IDENTIFIER
                 if(!s || (s->kind !=K_VAR && s->kind != K_PARAM) )
                     semanticError("Unknown array %s", $1);
            
-                /* Save type of value */
-                $$->type = s->type; 
+                if(s->type == T_STRING) // For the case of a[4+3] = ... :)
+                    $$->type = T_CHAR;
+                else
+                    $$->type = s->type;     
             } 
         
         
@@ -483,7 +488,7 @@ simple_statement: lvalue '=' expression ';'  Comments
                         Type lhs = semTypeOfLValue($1);
                         Type rhs = semTypeOfNode($3);
                         if(!semCheckAssign(lhs,rhs))
-                            semanticError("Type mismatch in assignment");
+                            semanticError("Type mismatch in assignment =) ");
 
                         // make AST:    
                         $$ = mknode("=", $1, $3); 
@@ -1000,9 +1005,11 @@ void printtree(node* tree, int level) {
 int main() {
     printf("Starting to parse input ..... \n");
     
-    // init the scopes:
+    // this is for see the scope :
     semInit();
+    
 
+    // continue: 
     int result = yyparse();
 
     if (result == 0) {
@@ -1017,7 +1024,7 @@ int main() {
     } else {
         printf("Parse Failed.\n");
     }
-    printScopes(); //printing the scopes 
-    return 0;
+    return result;
 }
+
 
